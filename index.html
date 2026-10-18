@@ -33,13 +33,13 @@
       background: #faf0e6;
     }
 
-    #game-container {
+    #game-canvas {
       display: block;
       cursor: grab;
       width: 800px;
       height: 600px;
     }
-    #game-container:active { cursor: grabbing; }
+    #game-canvas:active { cursor: grabbing; }
 
     /* --- UI PANEL --- */
     .needs-panel {
@@ -100,37 +100,6 @@
       padding-top: 10px;
       min-height: 40px;
     }
-
-    /* --- BUTOANE JOC --- */
-    .controls {
-      margin-top: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .btn {
-      background: #e8a87c;
-      color: white;
-      border: none;
-      padding: 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: background 0.2s;
-    }
-    .btn:hover { background: #d68f62; }
-    .btn-outline {
-      background: transparent;
-      color: #e8a87c;
-      border: 2px solid #e8a87c;
-    }
-    .btn-outline:hover { background: #fff5ee; }
-    .btn.active { background: #a8c3a6; border-color: #a8c3a6; color: white; }
-    .btn.active:hover { background: #8fae8d; }
-    
-    .btn-danger { color: #e57373; border-color: #e57373; }
-    .btn-danger:hover { background: #ffebee; }
 
     /* --- CREATOR SCREEN --- */
     #creator-screen {
@@ -193,7 +162,7 @@
 
   <div class="game-container">
     <div id="game-wrapper">
-      <div id="game-container"></div>
+      <canvas id="game-canvas"></canvas>
     </div>
     
     <div class="needs-panel">
@@ -220,142 +189,176 @@
         <div class="progress-bg"><div class="progress-fill fill-social" id="bar-social" style="width: 100%;"></div></div>
       </div>
 
-      <div class="status-msg" id="status-msg">Click to move / drag to rotate.</div>
-
-      <div class="controls">
-        <button class="btn btn-outline btn-danger" id="reset-btn" style="font-size: 0.8rem; padding: 8px; margin-top: 10px;">🔄 Reset Life</button>
-      </div>
+      <div class="status-msg" id="status-msg">Drag to rotate / Right-click to pan.</div>
     </div>
   </div>
 
   <script type="importmap">
   {
     "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
     }
   }
   </script>
 
   <script type="module">
     import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-    // --- AUDIO ---
-    let audioCtx = null;
-    function initAudio() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    function playPop() {
-      if (!audioCtx) return;
-      const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.type = 'sine'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-    }
-
-    // --- THREE.JS SETUP ---
-    const container = document.getElementById('game-container');
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#f5e6d3');
-    scene.fog = new THREE.Fog('#f5e6d3', 20, 40);
-
-    const camera = new THREE.PerspectiveCamera(45, 800 / 600, 0.1, 100);
-    camera.position.set(0, 12, 12);
-    camera.lookAt(0, 0, 0);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // --- SETUP ---
+    const canvas = document.getElementById('game-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setSize(800, 600);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#87CEEB'); // Cer albastru
+    scene.fog = new THREE.Fog('#87CEEB', 30, 60);
+
+    const camera = new THREE.PerspectiveCamera(45, 800 / 600, 0.1, 100);
+    camera.position.set(15, 15, 15);
+
+    // --- CONTROALE CAMERA (Ca la Sims) ---
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 2, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 - 0.05; // Să nu intre sub pământ
+    controls.minDistance = 5;
+    controls.maxDistance = 35;
 
     // --- LUMINI ---
     const ambientLight = new THREE.AmbientLight('#fff5e6', 0.6);
     scene.add(ambientLight);
 
     const sunLight = new THREE.DirectionalLight('#ffe8c4', 1.2);
-    sunLight.position.set(10, 20, 10);
+    sunLight.position.set(20, 30, 20);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 2048;
     sunLight.shadow.mapSize.height = 2048;
-    sunLight.shadow.camera.left = -20;
-    sunLight.shadow.camera.right = 20;
-    sunLight.shadow.camera.top = 20;
-    sunLight.shadow.camera.bottom = -20;
+    sunLight.shadow.camera.left = -30;
+    sunLight.shadow.camera.right = 30;
+    sunLight.shadow.camera.top = 30;
+    sunLight.shadow.camera.bottom = -30;
     scene.add(sunLight);
 
-    // --- HELPERS PENTRU CONSTRUCȚIE ---
-    function createBox(w, h, d, color, x, y, z) {
-      const geo = new THREE.BoxGeometry(w, h, d);
-      const mat = new THREE.MeshStandardMaterial({ color });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, y, z);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      return mesh;
-    }
-
-    // --- PODELE SI IARBA ---
-    const grass = createBox(40, 0.2, 40, '#8fbc8f', 0, -0.1, 0);
+    // --- MEDIU (IARBĂ, STRADĂ, VECINI) ---
+    const grass = new THREE.Mesh(
+        new THREE.PlaneGeometry(100, 100),
+        new THREE.MeshStandardMaterial({ color: '#8fbc8f' })
+    );
+    grass.rotation.x = -Math.PI / 2;
+    grass.receiveShadow = true;
     scene.add(grass);
 
-    // Podeaua casei
-    const floor = createBox(14, 0.1, 12, '#e8d5c4', 0, 0.05, 0);
-    scene.add(floor);
+    // Case vecini (simple)
+    function createNeighborHouse(x, z, color) {
+        const group = new THREE.Group();
+        const base = new THREE.Mesh(new THREE.BoxGeometry(8, 6, 8), new THREE.MeshStandardMaterial({ color }));
+        base.position.y = 3;
+        base.castShadow = true; base.receiveShadow = true;
+        
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(7, 3, 4), new THREE.MeshStandardMaterial({ color: '#a05a5a' }));
+        roof.position.y = 7.5;
+        roof.rotation.y = Math.PI / 4;
+        roof.castShadow = true;
 
-    // --- CASA (PEREȚI) ---
-    const wallColor = '#fdfbf7';
-    // Perete spate
-    scene.add(createBox(14, 4, 0.5, wallColor, 0, 2, -6));
-    // Perete stânga
-    scene.add(createBox(0.5, 4, 12, wallColor, -7, 2, 0));
-    // Perete dreapta
-    scene.add(createBox(0.5, 4, 12, wallColor, 7, 2, 0));
-    // Perete față (cu loc de ușă)
-    scene.add(createBox(5, 4, 0.5, wallColor, -4.5, 2, 6));
-    scene.add(createBox(5, 4, 0.5, wallColor, 4.5, 2, 6));
-    // Perete despărțitor interior
-    scene.add(createBox(0.5, 4, 6, wallColor, 0, 2, -3));
+        group.add(base, roof);
+        group.position.set(x, 0, z);
+        scene.add(group);
+    }
+    createNeighborHouse(-25, -15, '#ffd1b3');
+    createNeighborHouse(25, -20, '#b3e0ff');
+    createNeighborHouse(-30, 15, '#d9b3ff');
+
+    // --- CASA SIM-ULUI (2 ETAJE) ---
+    const houseGroup = new THREE.Group();
+    const wallMat = new THREE.MeshStandardMaterial({ color: '#fdfbf7' });
+    const floorMat = new THREE.MeshStandardMaterial({ color: '#e8d5c4' });
+
+    // Etaj 1
+    const floor1 = new THREE.Mesh(new THREE.BoxGeometry(16, 0.2, 16), floorMat);
+    floor1.position.y = 0.1;
+    floor1.receiveShadow = true;
+    houseGroup.add(floor1);
+
+    // Pereți Etaj 1 (deschis la față pentru vizibilitate)
+    const w1_back = new THREE.Mesh(new THREE.BoxGeometry(16, 4, 0.2), wallMat); w1_back.position.set(0, 2, -8); w1_back.castShadow = true; w1_back.receiveShadow = true;
+    const w1_left = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 16), wallMat); w1_left.position.set(-8, 2, 0); w1_left.castShadow = true; w1_left.receiveShadow = true;
+    const w1_right = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 16), wallMat); w1_right.position.set(8, 2, 0); w1_right.castShadow = true; w1_right.receiveShadow = true;
+    houseGroup.add(w1_back, w1_left, w1_right);
+
+    // Etaj 2 (Dormitor + Baie)
+    const floor2 = new THREE.Mesh(new THREE.BoxGeometry(16, 0.2, 16), floorMat);
+    floor2.position.y = 4.1;
+    floor2.castShadow = true; floor2.receiveShadow = true;
+    houseGroup.add(floor2);
+
+    const w2_back = new THREE.Mesh(new THREE.BoxGeometry(16, 4, 0.2), wallMat); w2_back.position.set(0, 6, -8); w2_back.castShadow = true;
+    const w2_left = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 16), wallMat); w2_left.position.set(-8, 6, 0); w2_left.castShadow = true;
+    const w2_right = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 16), wallMat); w2_right.position.set(8, 6, 0); w2_right.castShadow = true;
+    // Pereți interiori etaj 2
+    const w2_inner1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 8), wallMat); w2_inner1.position.set(0, 6, -4); w2_inner1.castShadow = true;
+    const w2_inner2 = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.2), wallMat); w2_inner2.position.set(-4, 6, 0); w2_inner2.castShadow = true;
+    houseGroup.add(w2_back, w2_left, w2_right, w2_inner1, w2_inner2);
+
+    scene.add(houseGroup);
 
     // --- MOBILĂ 3D ---
-    // Pat
-    const bedBase = createBox(3, 1, 4, '#8b5a2b', 4.5, 0.5, -4);
-    const bedMattrass = createBox(2.8, 0.5, 3.8, '#fff', 4.5, 1.2, -4);
-    const bedBlanket = createBox(2.8, 0.3, 2, '#fbcfe8', 4.5, 1.4, -3);
-    const bedPillow = createBox(2, 0.4, 1, '#fdfbf7', 4.5, 1.5, -5);
-    scene.add(bedBase, bedMattrass, bedBlanket, bedPillow);
+    const interactables = [];
 
-    // Frigider
-    const fridge = createBox(2, 3.5, 2, '#d1d5db', -5.5, 1.75, -4);
-    scene.add(fridge);
-    const fridgeHandle = createBox(0.1, 0.5, 0.1, '#9ca3af', -4.6, 2, -4);
-    scene.add(fridgeHandle);
+    function addFurniture(mesh, type, pos) {
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+        interactables.push({ mesh, type, pos });
+    }
+
+    // --- MOBILĂ ETAJ 1 (Living & Bucătărie) ---
+    // Canapea
+    const sofaBase = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 2), new THREE.MeshStandardMaterial({ color: '#d9a0b3' }));
+    sofaBase.position.set(-4, 0.6, 4);
+    const sofaBack = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 0.5), new THREE.MeshStandardMaterial({ color: '#c48698' }));
+    sofaBack.position.set(-4, 1.35, 5);
+    addFurniture(sofaBase, 'energie', new THREE.Vector3(-4, 0, 4));
+    scene.add(sofaBack);
 
     // TV
-    const tvStand = createBox(3, 1, 1.5, '#4b5563', 4.5, 0.5, 4);
-    const tvScreen = createBox(2.6, 1.5, 0.2, '#1a1a1a', 4.5, 2, 4);
-    scene.add(tvStand, tvScreen);
+    const tvStand = new THREE.Mesh(new THREE.BoxGeometry(3, 0.8, 1.5), new THREE.MeshStandardMaterial({ color: '#4b5563' }));
+    tvStand.position.set(4, 0.5, 4);
+    const tvScreen = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.6, 0.1), new THREE.MeshStandardMaterial({ color: '#1a1a1a' }));
+    tvScreen.position.set(4, 1.7, 4);
+    addFurniture(tvStand, 'distractie', new THREE.Vector3(4, 0, 4));
+    scene.add(tvScreen);
 
-    // Duș
-    const showerBase = createBox(2, 0.2, 2, '#bfdbfe', -5.5, 0.1, 4);
-    const showerGlass = createBox(2, 3, 0.1, 'rgba(255,255,255,0.3)', -5.5, 1.5, 5);
-    const showerGlass2 = createBox(0.1, 3, 2, 'rgba(255,255,255,0.3)', -6.5, 1.5, 4);
-    scene.add(showerBase, showerGlass, showerGlass2);
+    // Frigider
+    const fridge = new THREE.Mesh(new THREE.BoxGeometry(2, 3.5, 2), new THREE.MeshStandardMaterial({ color: '#d1d5db' }));
+    fridge.position.set(-6, 1.75, -6);
+    addFurniture(fridge, 'foame', new THREE.Vector3(-6, 0, -6));
 
-    // Covor
-    const rug = createBox(6, 0.05, 4, '#d9a0b3', 0, 0.1, 0);
-    scene.add(rug);
+    // --- MOBILĂ ETAJ 2 (Dormitor & Baie) ---
+    // Pat (Etaj 2)
+    const bedBase = new THREE.Mesh(new THREE.BoxGeometry(3, 0.8, 4.5), new THREE.MeshStandardMaterial({ color: '#8b5a2b' }));
+    bedBase.position.set(-5, 4.6, -5);
+    const bedMattrass = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.4, 4.2), new THREE.MeshStandardMaterial({ color: '#fff' }));
+    bedMattrass.position.set(-5, 5.1, -5);
+    const bedPillow = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 1), new THREE.MeshStandardMaterial({ color: '#fbcfe8' }));
+    bedPillow.position.set(-5, 5.4, -6.5);
+    addFurniture(bedBase, 'energie', new THREE.Vector3(-5, 4, -5));
+    scene.add(bedMattrass, bedPillow);
 
-    // Ușă
-    const door = createBox(2, 3, 0.2, '#8b7355', 0, 1.5, 6);
-    scene.add(door);
+    // Duș (Etaj 2)
+    const showerBase = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.2, 2.5), new THREE.MeshStandardMaterial({ color: '#bfdbfe' }));
+    showerBase.position.set(5, 4.2, -5);
+    const showerGlass = new THREE.Mesh(new THREE.BoxGeometry(2.5, 3, 0.1), new THREE.MeshStandardMaterial({ color: '#fff', transparent: true, opacity: 0.3 }));
+    showerGlass.position.set(5, 5.7, -3.8);
+    addFurniture(showerBase, 'igiena', new THREE.Vector3(5, 4, -5));
+    scene.add(showerGlass);
 
-    // --- PERSONAJE 3D ---
-    const characters = [];
-
+    // --- PERSONAJE UMANE 3D (FĂRĂ ROBLOX) ---
     function createHumanCharacter(name, shirtColor, isNPC) {
       const group = new THREE.Group();
       
@@ -364,73 +367,91 @@
       const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColor });
       const hairMat = new THREE.MeshStandardMaterial({ color: '#6d4c41' });
 
-      // Picioare
-      const legGeo = new THREE.BoxGeometry(0.4, 0.8, 0.4);
+      // Picioare (cilindri)
+      const legGeo = new THREE.CylinderGeometry(0.2, 0.2, 1, 8);
       const legL = new THREE.Mesh(legGeo, pantsMat);
-      legL.position.set(-0.25, 0.4, 0);
+      legL.position.set(-0.25, 0.5, 0);
       legL.castShadow = true;
       const legR = new THREE.Mesh(legGeo, pantsMat);
-      legR.position.set(0.25, 0.4, 0);
+      legR.position.set(0.25, 0.5, 0);
       legR.castShadow = true;
 
-      // Corp
-      const torsoGeo = new THREE.BoxGeometry(0.8, 1, 0.5);
+      // Corp (trunchi conic/rotunjit)
+      const torsoGeo = new THREE.CylinderGeometry(0.4, 0.5, 1.2, 8);
       const torso = new THREE.Mesh(torsoGeo, shirtMat);
-      torso.position.set(0, 1.3, 0);
+      torso.position.set(0, 1.6, 0);
       torso.castShadow = true;
 
-      // Mâini
-      const armGeo = new THREE.BoxGeometry(0.3, 0.8, 0.3);
+      // Mâini (cilindri)
+      const armGeo = new THREE.CylinderGeometry(0.15, 0.15, 1, 8);
       const armL = new THREE.Mesh(armGeo, skinMat);
-      armL.position.set(-0.6, 1.3, 0);
+      armL.position.set(-0.6, 1.6, 0);
       armL.castShadow = true;
       const armR = new THREE.Mesh(armGeo, skinMat);
-      armR.position.set(0.6, 1.3, 0);
+      armR.position.set(0.6, 1.6, 0);
       armR.castShadow = true;
 
-      // Cap
+      // Cap (sferă)
       const headGeo = new THREE.SphereGeometry(0.4, 16, 16);
       const head = new THREE.Mesh(headGeo, skinMat);
-      head.position.set(0, 2.1, 0);
+      head.position.set(0, 2.6, 0);
       head.castShadow = true;
 
-      // Păr (calota de sus)
+      // Păr
       const hairGeo = new THREE.SphereGeometry(0.42, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
       const hair = new THREE.Mesh(hairGeo, hairMat);
-      hair.position.set(0, 2.15, 0);
+      hair.position.set(0, 2.65, 0);
       hair.castShadow = true;
 
       group.add(legL, legR, torso, armL, armR, head, hair);
-      group.userData = { name, isNPC, legL, legR, armL, armR };
+      group.userData = { name, isNPC, legL, legR, armL, armR, torsoMat: shirtMat };
       return group;
     }
 
-    // Creăm Sim-ul și NPC-ul
+    // Creare Sim & NPC
     const sim = createHumanCharacter('Sim', '#e8a87c', false);
-    sim.position.set(0, 0, 2);
+    sim.position.set(0, 0.2, 6);
     scene.add(sim);
-    characters.push(sim);
 
     const npc = createHumanCharacter('Pufi', '#b19cd9', true);
-    npc.position.set(-3, 0, 0);
+    npc.position.set(-3, 0.2, 2);
     scene.add(npc);
-    characters.push(npc);
 
     // --- STARE JOC ---
     let timeOfDay = 12;
     let needs = { foame: 100, energie: 100, igiena: 100, distractie: 100, social: 100 };
     let gameStarted = false;
-    let targetPos = new THREE.Vector3(0, 0, 2);
+    let targetPos = new THREE.Vector3(0, 0.2, 6);
     let simMoving = false;
+    let isUsingAction = false;
+    let actionTimer = 0;
+    
+    // Iconiță acțiune 3D
+    const actionSprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: '#fff' }));
+    actionSprite.scale.set(1, 1, 1);
+    actionSprite.visible = false;
+    scene.add(actionSprite);
 
-    // Interacțiune cu obiectele (zone invizibile)
-    const interactables = [
-      { mesh: bedBase, type: 'energie', pos: new THREE.Vector3(4.5, 0, -4) },
-      { mesh: fridge, type: 'foame', pos: new THREE.Vector3(-5.5, 0, -4) },
-      { mesh: tvStand, type: 'distractie', pos: new THREE.Vector3(4.5, 0, 4) },
-      { mesh: showerBase, type: 'igiena', pos: new THREE.Vector3(-5.5, 0, 4) },
-      { mesh: npc, type: 'social', pos: npc.position }
-    ];
+    // Creare texturi pentru iconițe (desenate pe canvas)
+    function makeIconTexture(text) {
+        const c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(32, 32, 30, 0, Math.PI*2); ctx.fill();
+        ctx.font = '32px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 32, 32);
+        return new THREE.CanvasTexture(c);
+    }
+    const icons = {
+        sleep: makeIconTexture('💤'),
+        shower: makeIconTexture('💧'),
+        eat: makeIconTexture('🍔'),
+        fun: makeIconTexture('🎮'),
+        talk: makeIconTexture('💬')
+    };
 
     // --- CREATOR ---
     document.getElementById('color-picker').addEventListener('click', (e) => {
@@ -449,22 +470,18 @@
         document.getElementById('ui-sim-name').innerText = nameInput;
       }
       
-      // Actualizăm culoarea tricoului în 3D
-      const shirtMat = sim.children[2].material;
-      shirtMat.color.set(sim.userData.color || '#e8a87c');
+      sim.userData.torsoMat.color.set(sim.userData.color || '#e8a87c');
 
       document.getElementById('creator-screen').style.display = 'none';
       gameStarted = true;
-      initAudio();
-      playPop();
     });
 
-    // --- RAYCASTER (CLICK PE OBIECTE) ---
+    // --- INTERACȚIUNE (RAYCASTER) ---
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
     renderer.domElement.addEventListener('click', (e) => {
-      if (!gameStarted) return;
+      if (!gameStarted || isUsingAction) return;
 
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -472,82 +489,33 @@
 
       raycaster.setFromCamera(mouse, camera);
       
-      // Verificăm dacă am dat click pe podea sau iarbă
-      const intersectsFloor = raycaster.intersectObjects([floor, grass]);
-      // Verificăm dacă am dat click pe obiecte
-      const intersectsObjects = raycaster.intersectObjects(interactables.map(i => i.mesh));
-
-      if (intersectsObjects.length > 0) {
-        // Am dat click pe un obiect
-        const hit = intersectsObjects[0].object;
+      // Verificăm obiecte
+      const intersects = raycaster.intersectObjects(interactables.map(i => i.mesh));
+      if (intersects.length > 0) {
+        const hit = intersects[0].object;
         const objData = interactables.find(i => i.mesh === hit);
         
         if (objData) {
           targetPos.copy(objData.pos);
-          targetPos.y = 0;
+          // Calculăm o poziție lângă obiect
+          targetPos.x += 1.5; 
+          targetPos.y = objData.pos.y > 2 ? 4.2 : 0.2; // Ajustăm înălțimea pentru etajul 2
           simMoving = true;
           
-          if (objData.type === 'social') {
-            needs.social = Math.min(100, needs.social + 50);
-            document.getElementById('status-msg').innerText = "Talking to Pufi! 💬";
-          } else {
-            needs[objData.type] = Math.min(100, needs[objData.type] + 40);
-            document.getElementById('status-msg').innerText = "Using " + objData.type;
-          }
+          // Setăm acțiunea
+          sim.userData.nextAction = objData.type;
+          document.getElementById('status-msg').innerText = "Walking to " + objData.type;
         }
-      } else if (intersectsFloor.length > 0) {
-        // Am dat click pe podea
-        targetPos.copy(intersectsFloor[0].point);
-        targetPos.y = 0;
-        simMoving = true;
-        document.getElementById('status-msg').innerText = "Walking...";
       }
     });
 
-    // --- CAMERA CONTROL (ORBIT) ---
-    let isPanning = false;
-    let previousMousePosition = { x: 0, y: 0 };
-    let cameraAngle = Math.PI / 4; // Unghiul inițial
-    let cameraHeight = 12;
-    let cameraDistance = 15;
-
-    renderer.domElement.addEventListener('mousedown', (e) => {
-      isPanning = true;
-      previousMousePosition = { x: e.offsetX, y: e.offsetY };
-    });
-
-    renderer.domElement.addEventListener('mousemove', (e) => {
-      if (isPanning) {
-        const deltaX = e.offsetX - previousMousePosition.x;
-        cameraAngle -= deltaX * 0.01;
-        previousMousePosition = { x: e.offsetX, y: e.offsetY };
-      }
-    });
-
-    renderer.domElement.addEventListener('mouseup', () => isPanning = false);
-    renderer.domElement.addEventListener('mouseleave', () => isPanning = false);
-
-    renderer.domElement.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      cameraDistance += e.deltaY * 0.02;
-      cameraDistance = Math.max(8, Math.min(25, cameraDistance));
-    });
-
-    // --- UPDATE LOOP ---
+    // --- LOOP ---
     const clock = new THREE.Clock();
 
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
       const time = Date.now() / 1000;
-
-      // Actualizare cameră (orbit)
-      if (!isPanning) {
-        camera.position.x = Math.sin(cameraAngle) * cameraDistance;
-        camera.position.z = Math.cos(cameraAngle) * cameraDistance;
-        camera.position.y = cameraHeight;
-        camera.lookAt(0, 0, 0);
-      }
 
       if (gameStarted) {
         // Nevoi
@@ -568,76 +536,120 @@
         updateBar('distractie', needs.distractie);
         updateBar('social', needs.social);
 
-        // Mișcare Sim
-        if (simMoving) {
+        // Logica de mișcare și acțiune
+        if (isUsingAction) {
+            actionTimer -= delta;
+            // Animație folosire obiect
+            if (sim.userData.currentAction === 'energie') {
+                sim.position.y = 4.6 + Math.sin(time * 2) * 0.1; // Se lasă pe pat
+                sim.rotation.x = Math.PI / 2; // Se culcă
+            } else if (sim.userData.currentAction === 'igiena') {
+                sim.position.y = 4.2 + Math.abs(Math.sin(time * 10)) * 0.2; // Sare
+            }
+            
+            if (actionTimer <= 0) {
+                isUsingAction = false;
+                sim.position.y = sim.position.y > 2 ? 4.2 : 0.2;
+                sim.rotation.x = 0;
+                actionSprite.visible = false;
+                document.getElementById('status-msg').innerText = "Done!";
+            }
+        } else if (simMoving) {
           const dir = new THREE.Vector3().subVectors(targetPos, sim.position);
           dir.y = 0;
           const dist = dir.length();
           
           if (dist > 0.2) {
             dir.normalize();
-            sim.position.addScaledVector(dir, 3 * delta);
-            sim.lookAt(targetPos);
+            const speed = 3;
+            sim.position.addScaledVector(dir, speed * delta);
             
-            // Animație mers (legănare)
+            // Orientare
+            const targetLook = sim.position.clone().add(dir);
+            sim.lookAt(targetLook);
+
+            // Animație mers
             const walkSwing = Math.sin(time * 10) * 0.5;
             sim.userData.legL.rotation.x = walkSwing;
             sim.userData.legR.rotation.x = -walkSwing;
             sim.userData.armL.rotation.x = -walkSwing;
             sim.userData.armR.rotation.x = walkSwing;
+            
+            // Verificăm dacă a ajuns la etajul 2 (teleportare pe scări)
+            if (sim.position.y < 1 && targetPos.y > 2) {
+                sim.position.y = 4.2;
+            } else if (sim.position.y > 3 && targetPos.y < 1) {
+                sim.position.y = 0.2;
+            }
+
           } else {
             simMoving = false;
-            // Reset poziție
+            // Oprim animația de mers
             sim.userData.legL.rotation.x = 0;
             sim.userData.legR.rotation.x = 0;
             sim.userData.armL.rotation.x = 0;
             sim.userData.armR.rotation.x = 0;
+
+            // Pornim acțiunea
+            if (sim.userData.nextAction) {
+                isUsingAction = true;
+                actionTimer = 3; // 3 secunde
+                sim.userData.currentAction = sim.userData.nextAction;
+                
+                // Setăm iconița
+                actionSprite.material.map = icons[sim.userData.nextAction] || icons.fun;
+                actionSprite.visible = true;
+                
+                // Creștem nevoia
+                if (sim.userData.nextAction === 'energie') needs.energie += 30;
+                if (sim.userData.nextAction === 'igiena') needs.igiena += 30;
+                if (sim.userData.nextAction === 'foame') needs.foame += 30;
+                if (sim.userData.nextAction === 'distractie') needs.distractie += 30;
+                if (sim.userData.nextAction === 'social') needs.social += 30;
+                
+                sim.userData.nextAction = null;
+            }
           }
         }
 
-        // NPC Wander (se plimbă random)
+        // Actualizare iconiță acțiune
+        if (actionSprite.visible) {
+            actionSprite.position.copy(sim.position);
+            actionSprite.position.y += 3; // Deasupra capului
+        }
+
+        // NPC Wander
         if (Math.random() < 0.005) {
-          npc.userData.target = new THREE.Vector3(
-            -6 + Math.random() * 12,
-            0,
-            -5 + Math.random() * 10
-          );
+            npc.userData.target = new THREE.Vector3(-6 + Math.random() * 12, 0.2, -6 + Math.random() * 12);
         }
         if (npc.userData.target) {
-          const dir = new THREE.Vector3().subVectors(npc.userData.target, npc.position);
-          dir.y = 0;
-          if (dir.length() > 0.2) {
-            dir.normalize();
-            npc.position.addScaledVector(dir, 1.5 * delta);
-            npc.lookAt(npc.userData.target);
-            // Animație mers NPC
-            const swing = Math.sin(time * 10) * 0.5;
-            npc.userData.legL.rotation.x = swing;
-            npc.userData.legR.rotation.x = -swing;
-            npc.userData.armL.rotation.x = -swing;
-            npc.userData.armR.rotation.x = swing;
-          } else {
-            npc.userData.legL.rotation.x = 0;
-            npc.userData.legR.rotation.x = 0;
-            npc.userData.armL.rotation.x = 0;
-            npc.userData.armR.rotation.x = 0;
-          }
+            const dir = new THREE.Vector3().subVectors(npc.userData.target, npc.position);
+            dir.y = 0;
+            if (dir.length() > 0.2) {
+                dir.normalize();
+                npc.position.addScaledVector(dir, 1.5 * delta);
+                const targetLook = npc.position.clone().add(dir);
+                npc.lookAt(targetLook);
+                // Animație NPC
+                const swing = Math.sin(time * 10) * 0.5;
+                npc.userData.legL.rotation.x = swing;
+                npc.userData.legR.rotation.x = -swing;
+                npc.userData.armL.rotation.x = -swing;
+                npc.userData.armR.rotation.x = swing;
+            } else {
+                npc.userData.legL.rotation.x = 0;
+                npc.userData.legR.rotation.x = 0;
+                npc.userData.armL.rotation.x = 0;
+                npc.userData.armR.rotation.x = 0;
+            }
         }
       }
 
+      controls.update(); // Pentru OrbitControls
       renderer.render(scene, camera);
     }
 
     animate();
-
-    // Reset
-    document.getElementById('reset-btn').addEventListener('click', () => {
-      if (confirm("Are you sure you want to delete all progress?")) {
-        localStorage.removeItem('cozySimData');
-        location.reload();
-      }
-    });
-
   </script>
 </body>
 </html>
