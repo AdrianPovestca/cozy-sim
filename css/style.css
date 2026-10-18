@@ -20,64 +20,21 @@ body {
   background-size: 20px 20px;
   background-position: 0 0, 10px 10px;
 }
-
 .menu-content {
-  background: #fff;
-  padding: 50px 60px;
-  border-radius: 30px;
-  box-shadow: 0 15px 50px rgba(0,0,0,0.1);
-  text-align: center;
+  background: #fff; padding: 50px 60px; border-radius: 30px;
+  box-shadow: 0 15px 50px rgba(0,0,0,0.1); text-align: center;
 }
-
-.menu-content h1 {
-  font-size: 3.5rem;
-  color: #e8a87c;
-  margin-bottom: 5px;
-  font-weight: 800;
-  letter-spacing: 2px;
-}
-
-.menu-content .subtitle {
-  color: #a88f76;
-  font-size: 1.1rem;
-  margin-bottom: 40px;
-  font-style: italic;
-}
-
-.menu-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
+.menu-content h1 { font-size: 3.5rem; color: #e8a87c; margin-bottom: 5px; font-weight: 800; letter-spacing: 2px; }
+.menu-content .subtitle { color: #a88f76; font-size: 1.1rem; margin-bottom: 40px; font-style: italic; }
+.menu-buttons { display: flex; flex-direction: column; gap: 15px; }
 .menu-btn {
-  background: transparent;
-  color: #8b7355;
-  border: 2px solid #f0e0d0;
-  padding: 15px 30px;
-  font-size: 1.1rem;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: all 0.2s;
-  width: 250px;
+  background: transparent; color: #8b7355; border: 2px solid #f0e0d0;
+  padding: 15px 30px; font-size: 1.1rem; border-radius: 12px; cursor: pointer;
+  font-weight: bold; transition: all 0.2s; width: 250px;
 }
-
-.menu-btn:hover {
-  background: #f0e0d0;
-  transform: translateY(-2px);
-}
-
-.menu-btn.primary {
-  background: #e8a87c;
-  color: white;
-  border-color: #e8a87c;
-  font-size: 1.3rem;
-  padding: 18px 30px;
-}
-.menu-btn.primary:hover {
-  background: #d68f62;
-}
+.menu-btn:hover { background: #f0e0d0; transform: translateY(-2px); }
+.menu-btn.primary { background: #e8a87c; color: white; border-color: #e8a87c; font-size: 1.3rem; padding: 18px 30px; }
+.menu-btn.primary:hover { background: #d68f62; }
 
 /* --- SETTINGS --- */
 #settings-modal {
@@ -90,21 +47,60 @@ body {
 }
 .settings-box h2 { color: #8b7355; margin-bottom: 20px; text-align: center; }
 .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; color: #6b5b4d; font-weight: bold; }
-.setting-row select, .setting-row input { padding: 8px; border-radius: 8px; border: 2px solid #f0e0d0; outline: none; }
+.setting-row select { padding: 8px; border-radius: 8px; border: 2px solid #f0e0d0; outline: none; }
 
-/* --- JOC & PANOU --- */
-.game-container {
-  display: flex; gap: 20px; align-items: flex-start;
-  max-width: 95vw; height: 95vh;
+/* --- CREATE-A-SIM --- */
+#creator-screen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: #f5e6d3; display: flex; justify-content: center; align-items: center;
+  z-index: 300; overflow-y: auto;
 }
+.creator-box {
+  background: #fff; padding: 40px 50px; border-radius: 24px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1); text-align: center; 
+  max-width: 450px; width: 90%; margin: 20px;
+}
+.creator-box h1 { color: #8b7355; margin-bottom: 25px; font-size: 2rem; }
+.creator-section { margin-bottom: 25px; text-align: left; }
+.creator-section label { display: block; margin-bottom: 10px; color: #6b5b4d; font-weight: bold; font-size: 1rem; }
 
+.creator-box input[type="text"] {
+  width: 100%; padding: 12px; border: 2px solid #f0e0d0; border-radius: 10px;
+  font-size: 1rem; outline: none; color: #4a3728; text-align: center;
+}
+.creator-box input[type="text"]:focus { border-color: #e8a87c; }
+
+.btn-group { display: flex; gap: 10px; }
+.option-btn {
+  flex: 1; padding: 10px; border: 2px solid #f0e0d0; background: transparent;
+  border-radius: 10px; cursor: pointer; font-weight: bold; color: #6b5b4d;
+  transition: all 0.2s;
+}
+.option-btn:hover { background: #fff5ee; }
+.option-btn.selected { background: #e8a87c; color: white; border-color: #e8a87c; }
+
+.color-picker { display: flex; gap: 15px; flex-wrap: wrap; }
+.color-option {
+  width: 35px; height: 35px; border-radius: 50%; cursor: pointer;
+  border: 3px solid transparent; transition: transform 0.2s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.color-option:hover { transform: scale(1.1); }
+.color-option.selected { border-color: #4a3728; }
+
+.start-btn {
+  background: #a8c3a6; color: white; border: none; padding: 15px 30px;
+  font-size: 1.2rem; border-radius: 12px; cursor: pointer; font-weight: bold;
+  width: 100%; transition: background 0.2s; margin-top: 10px;
+}
+.start-btn:hover { background: #8fae8d; }
+
+/* --- GAME UI --- */
+.game-container { display: flex; gap: 20px; align-items: flex-start; max-width: 95vw; height: 95vh; }
 #game-wrapper {
-  position: relative; border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-  overflow: hidden; background: #faf0e6;
-  height: 600px; width: 800px;
+  position: relative; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  overflow: hidden; background: #faf0e6; height: 600px; width: 800px;
 }
-
 #game-canvas { display: block; cursor: grab; width: 100%; height: 100%; }
 #game-canvas:active { cursor: grabbing; }
 #game-canvas.build-mode { cursor: crosshair; }
@@ -115,12 +111,11 @@ body {
   width: 260px; display: flex; flex-direction: column; gap: 12px;
   height: 600px; overflow-y: auto;
 }
-
 .needs-panel h3 { color: #8b7355; text-align: center; font-size: 1.2rem; margin-bottom: 5px; }
 .need-row { display: flex; flex-direction: column; gap: 4px; }
 .need-label { display: flex; justify-content: space-between; font-size: 0.85rem; color: #6b5b4d; font-weight: 600; }
 .progress-bg { background: #f0e0d0; height: 10px; border-radius: 5px; overflow: hidden; }
-.progress-fill { height: 100%; border-radius: 5px; transition: width 0.3s ease, background-color 0.3s ease; }
+.progress-fill { height: 100%; border-radius: 5px; transition: width 0.3s ease; }
 
 .fill-foame { background-color: #e8a87c; }
 .fill-energie { background-color: #a8c3a6; }
@@ -138,37 +133,6 @@ body {
 .game-btn.outline { background: transparent; color: #e8a87c; border: 2px solid #e8a87c; }
 .game-btn.outline:hover { background: #fff5ee; }
 .game-btn.active { background: #a8c3a6; border-color: #a8c3a6; color: white; }
-
-/* --- CREATOR --- */
-#creator-screen {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: #f5e6d3; display: flex; justify-content: center; align-items: center;
-  flex-direction: column; z-index: 300;
-}
-.creator-box {
-  background: #fff; padding: 40px; border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 90%;
-}
-.creator-box h1 { color: #8b7355; margin-bottom: 10px; font-size: 1.8rem; }
-.creator-box label { display: block; margin-bottom: 8px; color: #6b5b4d; font-weight: bold; }
-.creator-box input[type="text"] {
-  width: 100%; padding: 12px; border: 2px solid #f0e0d0; border-radius: 10px;
-  font-size: 1rem; margin-bottom: 20px; outline: none; text-align: center; color: #4a3728;
-}
-.creator-box input[type="text"]:focus { border-color: #e8a87c; }
-.color-picker { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; }
-.color-option {
-  width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
-  border: 3px solid transparent; transition: transform 0.2s;
-}
-.color-option:hover { transform: scale(1.1); }
-.color-option.selected { border-color: #4a3728; }
-.start-btn {
-  background: #e8a87c; color: white; border: none; padding: 15px 30px;
-  font-size: 1.1rem; border-radius: 12px; cursor: pointer; font-weight: bold;
-  width: 100%; transition: background 0.2s;
-}
-.start-btn:hover { background: #d68f62; }
 
 /* --- SHOP --- */
 #shop-modal {
