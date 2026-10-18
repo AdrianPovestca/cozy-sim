@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ro">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -41,7 +41,7 @@
       padding: 20px;
       border-radius: 16px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.08);
-      width: 240px;
+      width: 250px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -124,7 +124,7 @@
     .btn-danger { color: #e57373; border-color: #e57373; }
     .btn-danger:hover { background: #ffebee; }
 
-    /* --- MODAL MAGAZIN --- */
+    /* --- MODAL SHOP --- */
     #shop-modal {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 50;
@@ -144,7 +144,7 @@
     .shop-item-emoji { font-size: 30px; display: block; margin-bottom: 5px; }
     .shop-item-name { font-size: 14px; color: #6b5b4d; font-weight: bold; }
 
-    /* --- ECRAN CREARE PERSONAJ --- */
+    /* --- CREATOR SCREEN --- */
     #creator-screen {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: #f5e6d3; display: flex; justify-content: center; align-items: center;
@@ -182,16 +182,15 @@
 </head>
 <body>
 
-  <!-- Ecran Creare Personaj -->
   <div id="creator-screen">
     <div class="creator-box">
-      <h1>Bun venit! 🌸</h1>
-      <p style="color: #a88f76; margin-bottom: 20px;">Creează-ți sim-ul pentru o viață cozy.</p>
+      <h1>Welcome! 🌸</h1>
+      <p style="color: #a88f76; margin-bottom: 20px;">Create your sim for a cozy life.</p>
       
-      <label>Cum te numești?</label>
-      <input type="text" id="sim-name" placeholder="Numele tău..." maxlength="12" value="Sim">
+      <label>What is your name?</label>
+      <input type="text" id="sim-name" placeholder="Your name..." maxlength="12" value="Sim">
 
-      <label>Alege o culoare:</label>
+      <label>Choose a color:</label>
       <div class="color-picker" id="color-picker">
         <div class="color-option" style="background: #e8a87c;" data-color="#e8a87c"></div>
         <div class="color-option" style="background: #a8c3a6;" data-color="#a8c3a6"></div>
@@ -200,40 +199,38 @@
         <div class="color-option" style="background: #b19cd9;" data-color="#b19cd9"></div>
       </div>
 
-      <button class="start-btn" id="start-btn">Începe viața cozy</button>
+      <button class="start-btn" id="start-btn">Start Cozy Life</button>
     </div>
   </div>
 
-  <!-- Modal Magazin -->
   <div id="shop-modal">
     <div class="shop-box">
-      <h2>Magazin Cozy 🛍️</h2>
+      <h2>Cozy Shop 🛍️</h2>
       <div class="shop-grid" id="shop-grid"></div>
-      <button class="btn" id="close-shop-btn">Închide</button>
+      <button class="btn" id="close-shop-btn">Close</button>
     </div>
   </div>
 
-  <!-- Jocul -->
   <div class="game-container">
     <canvas id="game" width="600" height="400"></canvas>
     
     <div class="needs-panel">
-      <h3 id="ui-sim-name">Nevoi</h3>
+      <h3 id="ui-sim-name">Needs</h3>
       
       <div class="need-row">
-        <div class="need-label"><span>🍔 Foame</span> <span id="val-foame">100%</span></div>
+        <div class="need-label"><span>🍔 Hunger</span> <span id="val-foame">100%</span></div>
         <div class="progress-bg"><div class="progress-fill fill-foame" id="bar-foame" style="width: 100%;"></div></div>
       </div>
       <div class="need-row">
-        <div class="need-label"><span>⚡ Energie</span> <span id="val-energie">100%</span></div>
+        <div class="need-label"><span>⚡ Energy</span> <span id="val-energie">100%</span></div>
         <div class="progress-bg"><div class="progress-fill fill-energie" id="bar-energie" style="width: 100%;"></div></div>
       </div>
       <div class="need-row">
-        <div class="need-label"><span>🚿 Igienă</span> <span id="val-igiena">100%</span></div>
+        <div class="need-label"><span>🚿 Hygiene</span> <span id="val-igiena">100%</span></div>
         <div class="progress-bg"><div class="progress-fill fill-igiena" id="bar-igiena" style="width: 100%;"></div></div>
       </div>
       <div class="need-row">
-        <div class="need-label"><span>🎮 Distracție</span> <span id="val-distractie">100%</span></div>
+        <div class="need-label"><span>🎮 Fun</span> <span id="val-distractie">100%</span></div>
         <div class="progress-bg"><div class="progress-fill fill-distractie" id="bar-distractie" style="width: 100%;"></div></div>
       </div>
       <div class="need-row">
@@ -241,12 +238,12 @@
         <div class="progress-bg"><div class="progress-fill fill-social" id="bar-social" style="width: 100%;"></div></div>
       </div>
 
-      <div class="status-msg" id="status-msg">Click pentru a te mișca / trage de fundal pentru cameră.</div>
+      <div class="status-msg" id="status-msg">Click to move / drag background to pan.</div>
 
       <div class="controls">
-        <button class="btn" id="open-shop-btn">🛒 Adaugă Obiecte</button>
-        <button class="btn btn-outline" id="edit-mode-btn">✏️ Editează Camera</button>
-        <button class="btn btn-outline btn-danger" id="reset-btn" style="font-size: 0.8rem; padding: 8px;">🔄 Începe de la zero</button>
+        <button class="btn" id="open-shop-btn">🛒 Add Objects</button>
+        <button class="btn btn-outline" id="edit-mode-btn">✏️ Edit Room</button>
+        <button class="btn btn-outline btn-danger" id="reset-btn" style="font-size: 0.8rem; padding: 8px;">🔄 Reset Life</button>
       </div>
     </div>
   </div>
@@ -272,26 +269,25 @@
         osc.start(); osc.stop(audioCtx.currentTime + 0.1);
       }
 
-      // --- STARE JOC ---
+      // --- GAME STATE ---
       let timeOfDay = 12;
       let gameTime = 0;
       let isEditMode = false;
       
-      // Variabile pentru Camera
       let camera = { x: 0, y: 0, zoom: 1 };
       let isPanning = false;
       let panStart = { x: 0, y: 0 };
-      let hasMoved = false; // Ca să nu mișcăm personajul când tragem de cameră
+      let hasMoved = false;
 
       let sim = {
         x: 300, y: 250, targetX: 300, targetY: 250,
         speed: 3, color: '#e8a87c', name: 'Sim',
         state: 'idle', actionTimer: 0, bobOffset: 0,
-        facingRight: true // Pentru a întoarce personajul
+        facingRight: true
       };
 
       let npc = {
-        x: 150, y: 150, targetX: 150, targetY: 150,
+        x: 200, y: 200, targetX: 200, targetY: 200,
         speed: 1.5, color: '#b19cd9', name: 'Pufi',
         state: 'idle', actionTimer: 0, bobOffset: 0,
         speechBubble: null, speechTimer: 0, facingRight: true
@@ -299,28 +295,47 @@
 
       let needs = { foame: 100, energie: 100, igiena: 100, distractie: 100, social: 100 };
 
+      // House layout definitions
+      const WALLS = [
+        { x: 50, y: 50, w: 500, h: 20 },   // Top wall
+        { x: 50, y: 50, w: 20, h: 300 },   // Left wall
+        { x: 530, y: 50, w: 20, h: 300 },  // Right wall
+        { x: 50, y: 330, w: 200, h: 20 },  // Bottom left wall
+        { x: 350, y: 330, w: 200, h: 20 }, // Bottom right wall
+      ];
+      
+      // Windows for visual
+      const WINDOWS = [
+        { x: 200, y: 50, w: 100, h: 20 },
+        { x: 50, y: 150, w: 20, h: 80 },
+        { x: 530, y: 150, w: 20, h: 80 },
+      ];
+
+      // Interior wall (split bedroom/living)
+      const INNER_WALL = { x: 300, y: 50, w: 20, h: 120 };
+
       let objects = [
-        { id: 'frigider', name: 'Frigider', x: 70, y: 100, w: 40, h: 60, color: '#d1d5db', need: 'foame', emoji: '🍔' },
-        { id: 'pat', name: 'Pat', x: 480, y: 80, w: 80, h: 50, color: '#fbcfe8', need: 'energie', emoji: '⚡' },
-        { id: 'dus', name: 'Duș', x: 70, y: 300, w: 40, h: 40, color: '#bfdbfe', need: 'igiena', emoji: '🚿' },
-        { id: 'tv', name: 'Televizor', x: 450, y: 300, w: 60, h: 40, color: '#4b5563', need: 'distractie', emoji: '🎮' }
+        { id: 'fridge', name: 'Fridge', x: 70, y: 70, w: 40, h: 60, color: '#d1d5db', need: 'foame', emoji: '🍔' },
+        { id: 'shower', name: 'Shower', x: 70, y: 270, w: 40, h: 40, color: '#bfdbfe', need: 'igiena', emoji: '🚿' },
+        { id: 'tv', name: 'TV', x: 420, y: 270, w: 60, h: 40, color: '#4b5563', need: 'distractie', emoji: '🎮' },
+        { id: 'bed', name: 'Bed', x: 420, y: 70, w: 80, h: 50, color: '#fbcfe8', need: 'energie', emoji: '⚡' }
       ];
 
       const shopCatalog = [
-        { id: 'planta', name: 'Plantă', w: 30, h: 40, color: '#a8c3a6', emoji: '🪴', need: 'igiena' },
-        { id: 'lampa', name: 'Lampă', w: 30, h: 50, color: '#f4d06f', emoji: '💡', need: 'distractie' },
-        { id: 'canapea', name: 'Canapea', w: 80, h: 40, color: '#d9a0b3', emoji: '🛋️', need: 'energie' },
-        { id: 'tablou', name: 'Tablou', w: 50, h: 40, color: '#e8a87c', emoji: '🖼️', need: 'distractie' }
+        { id: 'plant', name: 'Plant', w: 30, h: 40, color: '#a8c3a6', emoji: '🪴', need: 'igiena' },
+        { id: 'lamp', name: 'Lamp', w: 30, h: 50, color: '#f4d06f', emoji: '💡', need: 'distractie' },
+        { id: 'sofa', name: 'Sofa', w: 80, h: 40, color: '#d9a0b3', emoji: '🛋️', need: 'energie' },
+        { id: 'picture', name: 'Picture', w: 50, h: 40, color: '#e8a87c', emoji: '🖼️', need: 'distractie' }
       ];
 
       const dialogues = [
-        "Ce mai faci astăzi?", "Îmi place la tine acasă!", "Ai grijă să mănânci!",
-        "Hai să ne uităm la un film.", "E o zi frumoasă afară.", "Mă bucur că ești aici!"
+        "How are you today?", "I love your home!", "Don't forget to eat!",
+        "Let's watch a movie.", "It's a beautiful day outside.", "I'm glad you're here!"
       ];
 
       let gameStarted = false;
 
-      // --- CREARE PERSONAJ ---
+      // --- CREATOR ---
       document.getElementById('color-picker').addEventListener('click', (e) => {
         if (e.target.classList.contains('color-option')) {
           document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
@@ -343,7 +358,7 @@
         saveGame();
       });
 
-      // --- SALVARE / ÎNCĂRCARE / RESET ---
+      // --- SAVE / LOAD / RESET ---
       function saveGame() {
         localStorage.setItem('cozySimData', JSON.stringify({
           name: sim.name, color: sim.color, needs: needs, timeOfDay: timeOfDay, objects: objects
@@ -366,13 +381,13 @@
       }
 
       document.getElementById('reset-btn').addEventListener('click', () => {
-        if (confirm("Sigur vrei să ștergi tot progresul?")) {
+        if (confirm("Are you sure you want to delete all progress?")) {
           localStorage.removeItem('cozySimData');
           location.reload();
         }
       });
 
-      // --- MAGAZIN ---
+      // --- SHOP ---
       const shopModal = document.getElementById('shop-modal');
       const shopGrid = document.getElementById('shop-grid');
       
@@ -384,11 +399,12 @@
           div.className = 'shop-item';
           div.innerHTML = `<span class="shop-item-emoji">${item.emoji}</span><span class="shop-item-name">${item.name}</span>`;
           div.addEventListener('click', () => {
-            const newObj = { ...item, x: 150 + Math.random()*300, y: 150 + Math.random()*150 };
+            // Place new object safely inside the house
+            const newObj = { ...item, x: 150 + Math.random()*250, y: 150 + Math.random()*150 };
             objects.push(newObj);
             saveGame();
             shopModal.style.display = 'none';
-            document.getElementById('status-msg').innerText = "Ai adăugat " + item.name + "!";
+            document.getElementById('status-msg').innerText = "Added " + item.name + "!";
             playPop();
           });
           shopGrid.appendChild(div);
@@ -400,28 +416,27 @@
         shopModal.style.display = 'none';
       });
 
-      // --- MOD EDITARE ---
+      // --- EDIT MODE ---
       const editBtn = document.getElementById('edit-mode-btn');
       editBtn.addEventListener('click', () => {
         playPop();
         isEditMode = !isEditMode;
         if (isEditMode) {
-          editBtn.innerText = "✅ Salvează și Ieși";
+          editBtn.innerText = "✅ Save & Exit";
           editBtn.classList.add('active');
-          document.getElementById('status-msg').innerText = "Trage obiectele cu mouse-ul!";
+          document.getElementById('status-msg').innerText = "Drag objects with the mouse!";
         } else {
-          editBtn.innerText = "✏️ Editează Camera";
+          editBtn.innerText = "✏️ Edit Room";
           editBtn.classList.remove('active');
-          document.getElementById('status-msg').innerText = "Mod joc activat.";
+          document.getElementById('status-msg').innerText = "Game mode active.";
           saveGame();
         }
       });
 
-      // --- LOGICA DE UPDATE ---
+      // --- UPDATE LOGIC ---
       function update() {
         if (!gameStarted) return;
 
-        // Timp
         gameTime++;
         if (gameTime >= 60) {
             timeOfDay += 0.1;
@@ -429,18 +444,15 @@
             gameTime = 0;
         }
 
-        // Nevoi
         needs.foame = Math.max(0, needs.foame - 0.015);
         needs.energie = Math.max(0, needs.energie - 0.01);
         needs.igiena = Math.max(0, needs.igiena - 0.008);
         needs.distractie = Math.max(0, needs.distractie - 0.02);
         needs.social = Math.max(0, needs.social - 0.012);
 
-        // Bob
         sim.bobOffset = Math.sin(Date.now() / 500) * 2;
         npc.bobOffset = Math.sin(Date.now() / 550) * 2;
 
-        // Mișcare Sim
         if (!isEditMode) {
             if (sim.state === 'walking') {
             const dx = sim.targetX - sim.x;
@@ -464,7 +476,6 @@
             }
         }
 
-        // Mișcare NPC
         if (npc.speechTimer > 0) {
             npc.speechTimer--;
             if (npc.speechTimer <= 0) npc.speechBubble = null;
@@ -472,8 +483,8 @@
 
         if (npc.state === 'idle') {
           if (Math.random() < 0.005) {
-            npc.targetX = 80 + Math.random() * 400;
-            npc.targetY = 80 + Math.random() * 250;
+            npc.targetX = 100 + Math.random() * 350;
+            npc.targetY = 100 + Math.random() * 200;
             npc.state = 'walking';
           }
         } else if (npc.state === 'walking') {
@@ -490,7 +501,6 @@
           }
         }
 
-        // UI Update
         const updateBar = (id, val) => {
           document.getElementById('val-' + id).innerText = Math.round(val) + '%';
           document.getElementById('bar-' + id).style.width = val + '%';
@@ -502,33 +512,59 @@
         updateBar('social', needs.social);
       }
 
-      // --- DESENARE ---
+      // --- DRAWING ---
       function draw() {
-        // Reset canvas
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = '#faf0e6';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         if (!gameStarted) return;
 
-        // Aplicăm Camera (Zoom și Pan)
+        // Apply Camera
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.scale(camera.zoom, camera.zoom);
         ctx.translate(-canvas.width / 2 + camera.x, -canvas.height / 2 + camera.y);
 
-        // --- LUMINA ZI/NOAPTE ---
-        let dayNightAlpha = 0;
-        if (timeOfDay < 6 || timeOfDay > 20) dayNightAlpha = 0.7;
-        else if (timeOfDay < 8) dayNightAlpha = 0.7 - ((timeOfDay - 6) / 2) * 0.7;
-        else if (timeOfDay > 18) dayNightAlpha = ((timeOfDay - 18) / 2) * 0.7;
+        // Draw Floor (Wood)
+        ctx.fillStyle = '#e8d5c4';
+        ctx.fillRect(50, 50, 500, 300);
+        
+        // Draw room separator line
+        ctx.fillStyle = '#c1a893';
+        ctx.fillRect(50, 170, 500, 4); // Horizontal separator
 
-        // Covor
-        ctx.fillStyle = '#f0e0d0';
-        ctx.beginPath();
-        ctx.roundRect(50, 50, 500, 300, 20);
-        ctx.fill();
+        // Draw Windows (Sky)
+        let skyColor = '#87CEEB'; // Day
+        if (timeOfDay < 6 || timeOfDay > 20) skyColor = '#1a1a3a'; // Night
+        else if (timeOfDay < 8) skyColor = '#ffb347'; // Sunrise
+        else if (timeOfDay > 18) skyColor = '#ff7f50'; // Sunset
 
-        // Obiecte
+        WINDOWS.forEach(win => {
+            ctx.fillStyle = skyColor;
+            ctx.fillRect(win.x, win.y, win.w, win.h);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(win.x, win.y, win.w, win.h);
+        });
+
+        // Draw Walls
+        ctx.fillStyle = '#fdfbf7';
+        ctx.shadowColor = 'rgba(0,0,0,0.1)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 5;
+        WALLS.forEach(wall => {
+            ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
+        });
+        ctx.fillRect(INNER_WALL.x, INNER_WALL.y, INNER_WALL.w, INNER_WALL.h);
+        ctx.shadowColor = 'transparent';
+
+        // Draw Door
+        ctx.fillStyle = '#8b7355';
+        ctx.fillRect(250, 330, 50, 20);
+        ctx.fillStyle = '#f4d06f';
+        ctx.beginPath(); ctx.arc(290, 340, 3, 0, Math.PI*2); ctx.fill();
+
+        // Objects
         objects.forEach(obj => {
           ctx.fillStyle = obj.color;
           ctx.beginPath();
@@ -547,56 +583,43 @@
           ctx.fillText(obj.name, obj.x + obj.w / 2, obj.y + obj.h + 15);
         });
 
-        // --- DESENARE PERSONAJ NOU (CU CORP) ---
+        // Characters
         function drawCharacter(char, isNPC) {
           let yOffset = char.bobOffset;
           ctx.save();
           ctx.translate(char.x, char.y + yOffset);
 
-          // Umbră pe podea
           ctx.fillStyle = 'rgba(0,0,0,0.1)';
-          ctx.beginPath();
-          ctx.ellipse(0, 15, 12, 4, 0, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.beginPath(); ctx.ellipse(0, 15, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
 
-          // Întoarcem personajul în funcție de direcție
           if (!char.facingRight) ctx.scale(-1, 1);
 
-          // Culori
           let cColor = char.color;
           if (!isNPC && (needs.foame < 20 || needs.energie < 20)) cColor = '#e57373';
-          
           const darkerColor = isNPC ? '#8c72b5' : (cColor === '#e57373' ? '#c95b5b' : '#c4865a');
 
-          // Picioare
           ctx.fillStyle = darkerColor;
           ctx.beginPath(); ctx.roundRect(-6, 8, 4, 8, 2); ctx.fill();
           ctx.beginPath(); ctx.roundRect(2, 8, 4, 8, 2); ctx.fill();
 
-          // Corp (Rotunjit)
           ctx.fillStyle = cColor;
           ctx.beginPath(); ctx.roundRect(-10, -10, 20, 20, 8); ctx.fill();
 
-          // Mâini
           ctx.beginPath(); ctx.arc(-12, 0, 4, 0, Math.PI*2); ctx.fill();
           ctx.beginPath(); ctx.arc(12, 0, 4, 0, Math.PI*2); ctx.fill();
 
-          // Cap
           ctx.beginPath(); ctx.arc(0, -16, 12, 0, Math.PI * 2); ctx.fill();
 
-          // Ochi (se uită în direcția în care merge)
           ctx.fillStyle = '#4a3728';
           ctx.beginPath(); ctx.arc(3, -18, 2, 0, Math.PI * 2); ctx.fill();
           ctx.beginPath(); ctx.arc(8, -18, 2, 0, Math.PI * 2); ctx.fill();
 
-          // Obrajori roz
           ctx.fillStyle = 'rgba(255, 150, 150, 0.4)';
           ctx.beginPath(); ctx.arc(0, -14, 3, 0, Math.PI*2); ctx.fill();
           ctx.beginPath(); ctx.arc(10, -14, 3, 0, Math.PI*2); ctx.fill();
 
           ctx.restore();
 
-          // Nume
           ctx.font = '12px system-ui';
           ctx.fillStyle = '#8b7355';
           ctx.textAlign = 'center';
@@ -606,34 +629,24 @@
         drawCharacter(npc, true);
         drawCharacter(sim, false);
 
-        // Dialog NPC
+        // NPC Dialogue
         if (npc.speechBubble) {
-            ctx.fillStyle = 'white';
-            ctx.strokeStyle = '#d1d5db';
-            ctx.lineWidth = 2;
+            ctx.fillStyle = 'white'; ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 2;
             ctx.font = '12px system-ui';
             const textWidth = ctx.measureText(npc.speechBubble).width;
-            const boxW = textWidth + 20;
-            const boxH = 30;
-            const boxX = npc.x - boxW / 2;
-            const boxY = npc.y - 80 + npc.bobOffset;
+            const boxW = textWidth + 20; const boxH = 30;
+            const boxX = npc.x - boxW / 2; const boxY = npc.y - 80 + npc.bobOffset;
 
+            ctx.beginPath(); ctx.roundRect(boxX, boxY, boxW, boxH, 8); ctx.fill(); ctx.stroke();
             ctx.beginPath();
-            ctx.roundRect(boxX, boxY, boxW, boxH, 8);
-            ctx.fill(); ctx.stroke();
+            ctx.moveTo(npc.x - 5, boxY + boxH); ctx.lineTo(npc.x + 5, boxY + boxH);
+            ctx.lineTo(npc.x, boxY + boxH + 8); ctx.fill(); ctx.stroke();
 
-            ctx.beginPath();
-            ctx.moveTo(npc.x - 5, boxY + boxH);
-            ctx.lineTo(npc.x + 5, boxY + boxH);
-            ctx.lineTo(npc.x, boxY + boxH + 8);
-            ctx.fill(); ctx.stroke();
-
-            ctx.fillStyle = '#4a3728';
-            ctx.textAlign = 'center';
+            ctx.fillStyle = '#4a3728'; ctx.textAlign = 'center';
             ctx.fillText(npc.speechBubble, npc.x, boxY + 19);
         }
 
-        // Gânduri
+        // Thought Bubble
         let lowestNeed = 'foame'; let lowestVal = needs.foame;
         if (needs.energie < lowestVal) { lowestVal = needs.energie; lowestNeed = 'energie'; }
         if (needs.igiena < lowestVal) { lowestVal = needs.igiena; lowestNeed = 'igiena'; }
@@ -643,70 +656,61 @@
         if (lowestVal < 30 && sim.state === 'idle') {
           const needObj = objects.find(o => o.need === lowestNeed) || { emoji: '💬' };
           ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-          ctx.beginPath();
-          ctx.arc(sim.x + 20, sim.y - 50 + sim.bobOffset, 15, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.font = '16px Arial';
-          ctx.textAlign = 'center';
+          ctx.beginPath(); ctx.arc(sim.x + 20, sim.y - 50 + sim.bobOffset, 15, 0, Math.PI * 2); ctx.fill();
+          ctx.font = '16px Arial'; ctx.textAlign = 'center';
           ctx.fillText(needObj.emoji, sim.x + 20, sim.y - 45 + sim.bobOffset);
         }
 
-        // Overlay noapte (peste tot ecranul, nu doar peste cameră)
+        // Night Overlay
         ctx.setTransform(1, 0, 0, 1, 0, 0); 
+        let dayNightAlpha = 0;
+        if (timeOfDay < 6 || timeOfDay > 20) dayNightAlpha = 0.6;
+        else if (timeOfDay < 8) dayNightAlpha = 0.6 - ((timeOfDay - 6) / 2) * 0.6;
+        else if (timeOfDay > 18) dayNightAlpha = ((timeOfDay - 18) / 2) * 0.6;
+
         if (dayNightAlpha > 0) {
             ctx.fillStyle = `rgba(30, 40, 70, ${dayNightAlpha})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Cozy indoor light
             const gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 50, canvas.width/2, canvas.height/2, 400);
-            gradient.addColorStop(0, `rgba(255, 200, 100, ${dayNightAlpha * 0.4})`);
+            gradient.addColorStop(0, `rgba(255, 200, 100, ${dayNightAlpha * 0.5})`);
             gradient.addColorStop(1, 'transparent');
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Ceas vizual (FIX pe ecran, nu se mișcă cu camera)
+        // Clock
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.beginPath();
-        ctx.roundRect(535, 15, 50, 25, 8);
-        ctx.fill();
-        ctx.font = '12px system-ui';
-        ctx.fillStyle = '#6b5b4d';
-        ctx.textAlign = 'center';
+        ctx.beginPath(); ctx.roundRect(535, 15, 50, 25, 8); ctx.fill();
+        ctx.font = '12px system-ui'; ctx.fillStyle = '#6b5b4d'; ctx.textAlign = 'center';
         const hourStr = Math.floor(timeOfDay).toString().padStart(2, '0');
         const minStr = Math.floor((timeOfDay % 1) * 60).toString().padStart(2, '0');
         ctx.fillText(`⏰ ${hourStr}:${minStr}`, 560, 32);
       }
 
-      // --- INTERACȚIUNE ---
-      
-      // Calculăm poziția reală a mouse-ului în lume (ținând cont de cameră)
+      // --- INTERACTION ---
       function getMouseWorldPos(e) {
         const rect = canvas.getBoundingClientRect();
         const screenX = (e.clientX - rect.left) * (canvas.width / rect.width);
         const screenY = (e.clientY - rect.top) * (canvas.height / rect.height);
-        
-        // Inversăm transformările camerei
         const worldX = (screenX - canvas.width / 2) / camera.zoom + canvas.width / 2 - camera.x;
         const worldY = (screenY - canvas.height / 2) / camera.zoom + canvas.height / 2 - camera.y;
         return { x: worldX, y: worldY };
       }
 
-      // ZOOM cu rotița mouse-ului
       canvas.addEventListener('wheel', (e) => {
-        e.preventDefault(); // Oprim scroll-ul paginii
+        e.preventDefault();
         const zoomAmount = e.deltaY > 0 ? -0.1 : 0.1;
-        camera.zoom = Math.max(0.5, Math.min(3, camera.zoom + zoomAmount)); // Limităm zoom-ul
+        camera.zoom = Math.max(0.5, Math.min(3, camera.zoom + zoomAmount));
       });
 
-      // MOUSE DOWN (Trage de cameră sau obiect)
       canvas.addEventListener('mousedown', (e) => {
         if (!gameStarted) return;
         hasMoved = false;
-        
         const rect = canvas.getBoundingClientRect();
         const screenX = (e.clientX - rect.left) * (canvas.width / rect.width);
         const screenY = (e.clientY - rect.top) * (canvas.height / rect.height);
 
-        // Dacă suntem în Edit Mode, verificăm dacă tragem un obiect
         if (isEditMode) {
           const worldPos = getMouseWorldPos(e);
           const obj = getObjectAt(worldPos.x, worldPos.y);
@@ -714,20 +718,16 @@
             draggedObject = obj;
             dragOffsetX = worldPos.x - obj.x;
             dragOffsetY = worldPos.y - obj.y;
-            return; // Nu activăm pan-ul camerei
+            return;
           }
         }
-
-        // Altfel, activăm Pan Camera
         isPanning = true;
         panStart = { x: screenX - camera.x * camera.zoom, y: screenY - camera.y * camera.zoom };
       });
 
-      // MOUSE MOVE
       canvas.addEventListener('mousemove', (e) => {
         if (!gameStarted) return;
         hasMoved = true;
-
         const rect = canvas.getBoundingClientRect();
         const screenX = (e.clientX - rect.left) * (canvas.width / rect.width);
         const screenY = (e.clientY - rect.top) * (canvas.height / rect.height);
@@ -737,28 +737,28 @@
           draggedObject.x = worldPos.x - dragOffsetX;
           draggedObject.y = worldPos.y - dragOffsetY;
         } else if (isPanning) {
-          // Mutăm camera
           camera.x = (screenX - panStart.x) / camera.zoom;
           camera.y = (screenY - panStart.y) / camera.zoom;
         }
       });
 
-      // MOUSE UP
       canvas.addEventListener('mouseup', () => {
         isPanning = false;
         if (draggedObject) draggedObject = null;
       });
 
-      // CLICK (Pentru acțiuni normale)
       canvas.addEventListener('click', (e) => {
-        // Dacă am tras de cameră sau mutat un obiect, ignorăm click-ul de acțiune
         if (!gameStarted || isEditMode || hasMoved) return; 
-        
         const worldPos = getMouseWorldPos(e);
+        
+        // Simple wall collision check (don't walk outside)
+        if (worldPos.x < 70 || worldPos.x > 530 || worldPos.y < 70 || worldPos.y > 330) {
+            return;
+        }
+
         const clickX = worldPos.x;
         const clickY = worldPos.y;
 
-        // Click pe NPC
         const dxNpc = clickX - npc.x;
         const dyNpc = clickY - npc.y;
         if (Math.sqrt(dxNpc*dxNpc + dyNpc*dyNpc) < 30) {
@@ -766,13 +766,12 @@
           sim.targetY = npc.y;
           sim.state = 'walking';
           needs.social = Math.min(100, needs.social + 50);
-          document.getElementById('status-msg').innerText = "Vorbit cu " + npc.name + "! 💬";
+          document.getElementById('status-msg').innerText = "Talking to " + npc.name + "! 💬";
           npc.speechBubble = dialogues[Math.floor(Math.random() * dialogues.length)];
           npc.speechTimer = 180;
           return;
         }
 
-        // Click pe Obiecte
         const clickedObject = getObjectAt(clickX, clickY);
         if (clickedObject) {
           sim.targetX = clickedObject.x + clickedObject.w / 2;
@@ -781,7 +780,7 @@
           if (clickedObject.need) {
               needs[clickedObject.need] = Math.min(100, needs[clickedObject.need] + 40);
           }
-          document.getElementById('status-msg').innerText = "Folosește " + clickedObject.name;
+          document.getElementById('status-msg').innerText = "Using " + clickedObject.name;
         } else {
           sim.targetX = clickX;
           sim.targetY = clickY;
