@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <title>Cozy Sim 3D - Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #f5e6d3; overflow: hidden; font-family: system-ui, sans-serif; }
+    #info {
+      position: fixed; top: 15px; left: 15px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 15px; border-radius: 10px;
+      font-size: 13px; color: #6b5b4d;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    #fps {
+      position: fixed; top: 15px; right: 15px;
+      background: rgba(255,255,255,0.9);
+      padding: 8px 12px; border-radius: 10px;
+      font-size: 13px; color: #6b5b4d;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">Dă click pe podea pentru a mișca personajul.</div>
+  <div id="fps">FPS: --</div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    // --- SCENA ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#faf0e6');
+    scene.fog = new THREE.Fog('#faf0e6', 15, 30);
+
+    // --- CAMERA (izometrică, ca în Sims) ---
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(8, 10, 8);
+    camera.lookAt(0, 0, 0);
+
+    // --- RENDERER ---
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // limităm pentru performanță
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    // --- LUMINI ---
+    // Lumină ambientală caldă
+    const ambient = new THREE.AmbientLight('#fff5e6', 0.7);
+    scene.add(ambient);
+
+    // Lumină direcțională (soare) cu umbre
+    const sun = new THREE.DirectionalLight('#ffe8c4', 1.2);
+    sun.position.set(5, 10, 5);
+    sun.castShadow = true;
+    sun.shadow.mapSize.width = 1024;
+    sun.shadow.mapSize.height = 1024;
+    sun.shadow.camera.left = -10;
+    sun.shadow.camera.right = 10;
+    sun.shadow.camera.top = 10;
+    sun.shadow.camera.bottom = -10;
+    scene.add(sun);
+
+    // --- PODELE ---
+    const floorGeo = new THREE.PlaneGeometry(14, 14);
+    const floorMat = new THREE.MeshStandardMaterial({ color: '#f0e0d0' });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Covor
+    const rugGeo = new THREE.CircleGeometry(3, 32);
+    const rugMat = new THREE.MeshStandardMaterial({ color: '#e8d5c4' });
+    const rug = new THREE.Mesh(rugGeo, rugMat);
+    rug.rotation.x = -Math.PI / 2;
+    rug.position.y = 0.01;
+    rug.receiveShadow = true;
+    scene.add(rug);
+
+    // --- PERSONAJ ---
+    const character = new THREE.Group();
+    // Corp (sferă)
+    const bodyGeo = new THREE.SphereGeometry(0.5, 16, 16);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: '#e8a87c' });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 0.5;
+    body.castShadow = true;
+    character.add(body);
+
+    // Ochi
+    const eyeGeo = new THREE.SphereGeometry(0.08, 8, 8);
+    const eyeMat = new THREE.MeshStandardMaterial({ color: '#4a3728' });
+    const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeL.position.set(-0.15, 0.65, 0.42);
+    const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeR.position.set(0.15, 0.65, 0.42);
+    character.add(eyeL, eyeR);
+
+    character.position.set(0, 0, 0);
+    scene.add(character);
+
+    // --- OBIECTE (forme simple) ---
+    function makeBox(color, w, h, d, x, z, name) {
+      const geo = new THREE.BoxGeometry(w, h, d);
+      const mat = new THREE.MeshStandardMaterial({ color });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, h/2, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.name = name;
+      scene.add(mesh);
+      return mesh;
+    }
+
+    // Frigider
+    makeBox('#d1d5db', 0.8, 1.6, 0.8, -4, -4, 'Frigider');
+    // Pat (cutie joasă, mai lungă)
+    const bed = makeBox('#fbcfe8', 2, 0.4, 1, 4, -4, 'Pat');
+    // Duș
+    makeBox('#bfdbfe', 1, 1.8, 1, -4, 4, 'Duș');
+    // TV
+    makeBox('#4b5563', 1.2, 0.8, 0.2, 4, 4, 'TV');
+
+    // --- MIXTAPE: click pe podea ---
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let targetPos = new THREE.Vector3(0, 0, 0);
+
+    renderer.domElement.addEventListener('click', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(scene.children);
+      
+      for (let hit of intersects) {
+        if (hit.object === floor) {
+          targetPos.copy(hit.point);
+          targetPos.y = 0;
+          break;
+        }
+      }
+    });
+
+    // --- ANIMAȚIE ---
+    const clock = new THREE.Clock();
+    let frames = 0;
+    let fpsTime = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+
+      // Mișcare lină spre target
+      const dir = new THREE.Vector3().subVectors(targetPos, character.position);
+      dir.y = 0;
+      const dist = dir.length();
+      if (dist > 0.05) {
+        dir.normalize();
+        character.position.addScaledVector(dir, 3 * delta);
+        // Orientăm personajul spre direcția de mers
+        const angle = Math.atan2(dir.x, dir.z);
+        character.rotation.y = angle;
+      }
+
+      // Bob (respirație)
+      body.position.y = 0.5 + Math.sin(Date.now() / 400) * 0.03;
+
+      // FPS counter
+      frames++;
+      fpsTime += delta;
+      if (fpsTime >= 1) {
+        document.getElementById('fps').innerText = 'FPS: ' + frames;
+        frames = 0;
+        fpsTime = 0;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // --- RESIZE ---
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
