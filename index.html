@@ -8,8 +8,11 @@
 </head>
 <body>
 
+  <!-- CANVAS PRINCIPAL (UMBLE TOT ECRANUL) -->
+  <canvas id="game-canvas"></canvas>
+
   <!-- 1. ECRANUL PRINCIPAL (MAIN MENU) -->
-  <div id="main-menu" class="screen active">
+  <div id="main-menu" class="overlay-screen">
     <div class="menu-content">
       <h1>Cozy Sim</h1>
       <p class="subtitle">A little life, just for you.</p>
@@ -27,7 +30,7 @@
   </div>
 
   <!-- 2. SETTINGS MODAL -->
-  <div id="settings-modal" class="modal">
+  <div id="settings-modal" class="overlay-screen">
     <div class="settings-box">
       <h2>Settings ⚙️</h2>
       <div class="setting-row">
@@ -41,16 +44,10 @@
     </div>
   </div>
 
-  <!-- 3. CREATORUL DE PERSONAJ (CREATE-A-SIM 3D) -->
-  <div id="creator-screen" class="screen">
-    <div class="creator-layout">
-      
-      <!-- Partea stângă: Previzualizare 3D -->
-      <div class="creator-preview">
-        <canvas id="preview-canvas"></canvas>
-      </div>
-
-      <!-- Partea dreaptă: Opțiuni -->
+  <!-- 3. CREATORUL DE PERSONAJ 3D -->
+  <div id="creator-screen" class="overlay-screen" style="pointer-events: none;">
+    <!-- Container transparent pentru a lăsa canvas-ul din spate să se vadă -->
+    <div class="creator-layout" style="pointer-events: auto;">
       <div class="creator-options">
         <h1>Create your Sim 🌸</h1>
         
@@ -102,21 +99,8 @@
     </div>
   </div>
 
-  <!-- 4. MAGAZIN -->
-  <div id="shop-modal" class="modal">
-    <div class="shop-box">
-      <h2>Buy Furniture 🛋️</h2>
-      <div class="shop-grid" id="shop-grid"></div>
-      <button class="close-btn" id="close-shop">Close</button>
-    </div>
-  </div>
-
-  <!-- 5. JOCUL PROPRIU-ZIS -->
-  <div class="game-container screen" id="game-ui">
-    <div id="game-wrapper">
-      <canvas id="game-canvas"></canvas>
-    </div>
-    
+  <!-- 4. HUD JOC (Panou plutitor) -->
+  <div id="game-hud">
     <div class="needs-panel">
       <h3 id="ui-sim-name">Needs</h3>
       
@@ -140,14 +124,24 @@
         <div class="need-label"><span>💬 Social</span> <span id="val-social">100%</span></div>
         <div class="progress-bg"><div class="progress-fill fill-social" id="bar-social" style="width: 100%;"></div></div>
       </div>
+    </div>
 
-      <div class="status-msg" id="status-msg">Drag to rotate / Scroll to zoom.</div>
+    <!-- BUTOANE IN-GAME (Jos) -->
+    <div class="game-actions">
+      <button class="hud-btn" id="open-shop-btn">🛒 Buy</button>
+      <button class="hud-btn" id="build-mode-btn">🔨 Build</button>
+      <button class="hud-btn" id="floor-toggle-btn">🏠 Upstairs</button>
+    </div>
 
-      <div class="controls" style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;">
-        <button class="game-btn" id="open-shop-btn">🛒 Buy Furniture</button>
-        <button class="game-btn outline" id="build-mode-btn">🔨 Build Mode</button>
-        <button class="game-btn outline" id="floor-toggle-btn" style="border-color: #89b0ae; color: #89b0ae;">🏠 Go Upstairs</button>
-      </div>
+    <div class="status-msg" id="status-msg">Drag to rotate / Scroll to zoom.</div>
+  </div>
+
+  <!-- 5. MAGAZIN -->
+  <div id="shop-modal" class="overlay-screen">
+    <div class="shop-box">
+      <h2>Buy Furniture 🛋️</h2>
+      <div class="shop-grid" id="shop-grid"></div>
+      <button class="close-btn" id="close-shop">Close</button>
     </div>
   </div>
 
