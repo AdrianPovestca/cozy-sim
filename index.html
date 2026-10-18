@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cozy Sim 3D</title>
-  <!-- Aici conectăm fișierul CSS -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -27,6 +26,17 @@
       </div>
 
       <button class="start-btn" id="start-btn">Start Cozy Life</button>
+    </div>
+  </div>
+
+  <!-- MAGAZIN (Ascuns initial) -->
+  <div id="shop-modal">
+    <div class="shop-box">
+      <h2>Buy Furniture 🛋️</h2>
+      <div class="shop-grid" id="shop-grid">
+        <!-- Generat din JS -->
+      </div>
+      <button class="close-btn" id="close-shop">Close</button>
     </div>
   </div>
 
@@ -60,10 +70,15 @@
       </div>
 
       <div class="status-msg" id="status-msg">Drag to rotate / Right-click to pan.</div>
+
+      <!-- BUTOANE JOC -->
+      <div class="controls" style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;">
+        <button class="game-btn" id="open-shop-btn">🛒 Buy Furniture</button>
+        <button class="game-btn outline" id="build-mode-btn">🔨 Build Mode</button>
+      </div>
     </div>
   </div>
 
-  <!-- Aici încărcăm bibliotecile și codul nostru -->
   <script type="importmap">
   {
     "imports": {
