@@ -5,12 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cozy Sim</title>
   <style>
-    /* CSS-ul este integrat aici ca să nu avem probleme cu folderele */
-    * { 
-      margin: 0; 
-      padding: 0; 
-      box-sizing: border-box; 
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       background: #f5e6d3;
@@ -19,7 +14,15 @@
       align-items: center;
       min-height: 100vh;
       font-family: system-ui, -apple-system, sans-serif;
-      overflow: hidden; /* Să nu avem scroll bars inutile */
+      overflow: hidden;
+    }
+
+    /* Containerul principal care ține canvas-ul și panoul de nevoi */
+    .game-container {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      max-width: 95vw;
     }
 
     canvas {
@@ -27,82 +30,231 @@
       border-radius: 16px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.08);
       display: block;
-      max-width: 95vw;
-      max-height: 90vh;
       cursor: pointer;
+    }
+
+    /* Panoul de Nevoi (UI) */
+    .needs-panel {
+      background: #fff;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+      width: 220px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .needs-panel h3 {
+      color: #8b7355;
+      text-align: center;
+      margin-bottom: 5px;
+      font-size: 1.2rem;
+    }
+
+    .need-row {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .need-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      color: #6b5b4d;
+      font-weight: 600;
+    }
+
+    .progress-bg {
+      background: #f0e0d0;
+      height: 12px;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.3s ease, background-color 0.3s ease;
+    }
+
+    /* Culori diferite pentru fiecare nevoie */
+    .fill-foame { background-color: #e8a87c; }
+    .fill-energie { background-color: #a8c3a6; }
+    .fill-igiena { background-color: #89b0ae; }
+    .fill-distractie { background-color: #d9a0b3; }
+
+    .status-msg {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #a88f76;
+      font-style: italic;
+      margin-top: 10px;
+      min-height: 20px;
     }
   </style>
 </head>
 <body>
 
-  <canvas id="game" width="600" height="400"></canvas>
+  <div class="game-container">
+    <canvas id="game" width="600" height="400"></canvas>
+    
+    <div class="needs-panel">
+      <h3>Nevoi</h3>
+      
+      <div class="need-row">
+        <div class="need-label"><span>🍔 Foame</span> <span id="val-foame">100%</span></div>
+        <div class="progress-bg"><div class="progress-fill fill-foame" id="bar-foame" style="width: 100%;"></div></div>
+      </div>
+
+      <div class="need-row">
+        <div class="need-label"><span>⚡ Energie</span> <span id="val-energie">100%</span></div>
+        <div class="progress-bg"><div class="progress-fill fill-energie" id="bar-energie" style="width: 100%;"></div></div>
+      </div>
+
+      <div class="need-row">
+        <div class="need-label"><span>🚿 Igienă</span> <span id="val-igiena">100%</span></div>
+        <div class="progress-bg"><div class="progress-fill fill-igiena" id="bar-igiena" style="width: 100%;"></div></div>
+      </div>
+
+      <div class="need-row">
+        <div class="need-label"><span>🎮 Distracție</span> <span id="val-distractie">100%</span></div>
+        <div class="progress-bg"><div class="progress-fill fill-distractie" id="bar-distractie" style="width: 100%;"></div></div>
+      </div>
+
+      <div class="status-msg" id="status-msg">Dă click pe obiecte!</div>
+    </div>
+  </div>
 
   <script>
-    // Așteptăm ca pagina să se încarce complet înainte să pornim jocul
     window.onload = () => {
       const canvas = document.getElementById('game');
       const ctx = canvas.getContext('2d');
 
-      // Personajul
+      // --- STARE JOC ---
       const sim = {
-        x: 300,
-        y: 200,
-        targetX: 300,
-        targetY: 200,
-        speed: 2.5,
+        x: 300, y: 250,
+        targetX: 300, targetY: 250,
+        speed: 3,
         color: '#e8a87c',
-        name: 'Adrian' // Poți schimba numele aici deocamdată
+        name: 'Adrian',
+        state: 'idle', // 'idle', 'walking', 'using'
+        actionTimer: 0
       };
 
-      // Click pe canvas → setăm destinația
-      canvas.addEventListener('click', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        // Calculăm scale-ul în caz că canvas-ul e redimensionat de CSS
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
+      const needs = {
+        foame: 100,
+        energie: 100,
+        igiena: 100,
+        distractie: 100
+      };
+
+      // Obiectele din cameră (poziționate strategic)
+      const objects = [
+        { id: 'frigider', name: 'Frigider', x: 70, y: 100, w: 40, h: 60, color: '#d1d5db', need: 'foame', emoji: '🍔' },
+        { id: 'pat', name: 'Pat', x: 480, y: 80, w: 80, h: 50, color: '#fbcfe8', need: 'energie', emoji: '⚡' },
+        { id: 'dus', name: 'Duș', x: 70, y: 300, w: 40, h: 40, color: '#bfdbfe', need: 'igiena', emoji: '🚿' },
+        { id: 'tv', name: 'Televizor', x: 450, y: 300, w: 60, h: 40, color: '#4b5563', need: 'distractie', emoji: '🎮' }
+      ];
+
+      // --- LOGICA DE UPDATE ---
+      function update() {
+        // 1. Scăderea nevoilor în timp (încet)
+        needs.foame = Math.max(0, needs.foame - 0.02);
+        needs.energie = Math.max(0, needs.energie - 0.015);
+        needs.igiena = Math.max(0, needs.igiena - 0.01);
+        needs.distractie = Math.max(0, needs.distractie - 0.025);
+
+        // 2. Mișcarea sim-ului
+        if (sim.state === 'walking') {
+          const dx = sim.targetX - sim.x;
+          const dy = sim.targetY - sim.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist > sim.speed) {
+            sim.x += (dx / dist) * sim.speed;
+            sim.y += (dy / dist) * sim.speed;
+          } else {
+            sim.x = sim.targetX;
+            sim.y = sim.targetY;
+            sim.state = 'using'; // A ajuns la obiect
+            sim.actionTimer = 180; // Stă 3 secunde (60fps * 3)
+          }
+        } else if (sim.state === 'using') {
+          sim.actionTimer--;
+          if (sim.actionTimer <= 0) {
+            sim.state = 'idle';
+          }
+        }
+
+        // 3. Actualizare UI (Barele)
+        document.getElementById('val-foame').innerText = Math.round(needs.foame) + '%';
+        document.getElementById('bar-foame').style.width = needs.foame + '%';
         
-        sim.targetX = (e.clientX - rect.left) * scaleX;
-        sim.targetY = (e.clientY - rect.top) * scaleY;
-      });
+        document.getElementById('val-energie').innerText = Math.round(needs.energie) + '%';
+        document.getElementById('bar-energie').style.width = needs.energie + '%';
+        
+        document.getElementById('val-igiena').innerText = Math.round(needs.igiena) + '%';
+        document.getElementById('bar-igiena').style.width = needs.igiena + '%';
+        
+        document.getElementById('val-distractie').innerText = Math.round(needs.distractie) + '%';
+        document.getElementById('bar-distractie').style.width = needs.distractie + '%';
 
-      // Mișcare lină spre țintă
-      function updateSim() {
-        const dx = sim.targetX - sim.x;
-        const dy = sim.targetY - sim.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist > sim.speed) {
-          sim.x += (dx / dist) * sim.speed;
-          sim.y += (dy / dist) * sim.speed;
+        // Mesaj de status
+        if (sim.state === 'using') {
+          document.getElementById('status-msg').innerText = "Sim-ul se ocupă de nevoi...";
+        } else if (sim.state === 'walking') {
+          document.getElementById('status-msg').innerText = "Se îndreaptă spre obiect...";
         } else {
-          sim.x = sim.targetX;
-          sim.y = sim.targetY;
+          document.getElementById('status-msg').innerText = "Dă click pe obiecte!";
         }
       }
 
-      // Desenare
+      // --- DESENARE ---
       function draw() {
-        // Fundal
         ctx.fillStyle = '#faf0e6';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Covor moale
+        // Covor
         ctx.fillStyle = '#f0e0d0';
         ctx.beginPath();
-        ctx.roundRect(80, 60, 440, 280, 20);
+        ctx.roundRect(50, 50, 500, 300, 20);
         ctx.fill();
 
-        // Sim-ul cu umbră
+        // Desenăm obiectele
+        objects.forEach(obj => {
+          // Corpul obiectului
+          ctx.fillStyle = obj.color;
+          ctx.beginPath();
+          ctx.roundRect(obj.x, obj.y, obj.w, obj.h, 8);
+          ctx.fill();
+          
+          // Emoji-ul deasupra
+          ctx.font = '24px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(obj.emoji, obj.x + obj.w / 2, obj.y - 10);
+          
+          // Numele obiectului
+          ctx.font = '10px system-ui';
+          ctx.fillStyle = '#6b5b4d';
+          ctx.fillText(obj.name, obj.x + obj.w / 2, obj.y + obj.h + 15);
+        });
+
+        // Desenăm sim-ul
         ctx.shadowColor = 'rgba(0,0,0,0.1)';
         ctx.shadowBlur = 8;
         ctx.shadowOffsetY = 3;
 
+        // Culoarea devine roșiatică dacă e flămând
+        let simColor = sim.color;
+        if (needs.foame < 20 || needs.energie < 20) simColor = '#e57373';
+
         ctx.beginPath();
         ctx.arc(sim.x, sim.y, 16, 0, Math.PI * 2);
-        ctx.fillStyle = sim.color;
+        ctx.fillStyle = simColor;
         ctx.fill();
 
-        // Resetăm umbra pentru ochișori și text
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
         ctx.shadowOffsetY = 0;
@@ -117,18 +269,53 @@
         // Nume
         ctx.font = '12px system-ui';
         ctx.fillStyle = '#8b7355';
-        ctx.textAlign = 'center';
         ctx.fillText(sim.name, sim.x, sim.y - 26);
       }
 
-      // Game loop
+      // --- INTERACȚIUNE ---
+      canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
+        const clickX = (e.clientX - rect.left) * scaleX;
+        const clickY = (e.clientY - rect.top) * scaleY;
+
+        let clickedObject = null;
+
+        // Verificăm dacă am dat click pe vreun obiect
+        for (let obj of objects) {
+          if (clickX >= obj.x && clickX <= obj.x + obj.w &&
+              clickY >= obj.y && clickY <= obj.y + obj.h) {
+            clickedObject = obj;
+            break;
+          }
+        }
+
+        if (clickedObject) {
+          // Mergem spre obiect
+          sim.targetX = clickedObject.x + clickedObject.w / 2;
+          sim.targetY = clickedObject.y + clickedObject.h + 25; // Ne oprim puțin sub obiect
+          sim.state = 'walking';
+          
+          // Când ajunge, creștem nevoia (logica e simplificată: creștem imediat)
+          // În realitate, am crește-o în timpul acțiunii, dar pentru simplitate o facem la click
+          needs[clickedObject.need] = Math.min(100, needs[clickedObject.need] + 40);
+        } else {
+          // Dacă dăm click pe podea, merge acolo
+          sim.targetX = clickX;
+          sim.targetY = clickY;
+          sim.state = 'walking';
+        }
+      });
+
+      // --- GAME LOOP ---
       function loop() {
-        updateSim();
+        update();
         draw();
         requestAnimationFrame(loop);
       }
 
-      // Pornim jocul
       loop();
     };
   </script>
