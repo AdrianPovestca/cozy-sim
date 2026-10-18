@@ -15,6 +15,7 @@
       min-height: 100vh;
       font-family: system-ui, -apple-system, sans-serif;
       overflow: hidden;
+      transition: background 2s ease;
     }
 
     .game-container {
@@ -30,6 +31,7 @@
       box-shadow: 0 8px 32px rgba(0,0,0,0.08);
       display: block;
       cursor: pointer;
+      transition: background 2s ease;
     }
 
     /* --- UI PANEL --- */
@@ -177,7 +179,6 @@
 </head>
 <body>
 
-  <!-- Ecranul de Creare Personaj -->
   <div id="creator-screen">
     <div class="creator-box">
       <h1>Bun venit! 🌸</h1>
@@ -199,7 +200,6 @@
     </div>
   </div>
 
-  <!-- Jocul propriu-zis -->
   <div class="game-container">
     <canvas id="game" width="600" height="400"></canvas>
     
@@ -236,17 +236,20 @@
       const canvas = document.getElementById('game');
       const ctx = canvas.getContext('2d');
 
-      // --- STARE JOC ---
+      let timeOfDay = 12; // 0-24 (ora din zi)
+      let gameTime = 0; // timer pentru a avansa ora
+
       let sim = {
         x: 300, y: 250, targetX: 300, targetY: 250,
         speed: 3, color: '#e8a87c', name: 'Sim',
-        state: 'idle', actionTimer: 0
+        state: 'idle', actionTimer: 0, bobOffset: 0
       };
 
       let npc = {
         x: 150, y: 150, targetX: 150, targetY: 150,
-        speed: 1.5, color: '#b19cd9', name: 'Pufi', // Un prieten drăguț
-        state: 'idle', actionTimer: 0
+        speed: 1.5, color: '#b19cd9', name: 'Pufi',
+        state: 'idle', actionTimer: 0, bobOffset: 0,
+        speechBubble: null, speechTimer: 0
       };
 
       let needs = { foame: 100, energie: 100, igiena: 100, distractie: 100, social: 100 };
@@ -258,9 +261,18 @@
         { id: 'tv', name: 'Televizor', x: 450, y: 300, w: 60, h: 40, color: '#4b5563', need: 'distractie', emoji: '🎮' }
       ];
 
+      const dialogues = [
+        "Ce mai faci astăzi?",
+        "Îmi place la tine acasă!",
+        "Ai grijă să mănânci!",
+        "Hai să ne uităm la un film.",
+        "E o zi frumoasă afară.",
+        "Mă bucur că ești aici!"
+      ];
+
       let gameStarted = false;
 
-      // --- LOGICA DE CREARE PERSONAJ ---
+      // --- CREARE PERSONAJ ---
       document.getElementById('color-picker').addEventListener('click', (e) => {
         if (e.target.classList.contains('color-option')) {
           document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
@@ -268,7 +280,6 @@
           sim.color = e.target.dataset.color;
         }
       });
-      // Selectăm prima culoare by default
       document.querySelector('.color-option').classList.add('selected');
 
       document.getElementById('start-btn').addEventListener('click', () => {
@@ -279,15 +290,11 @@
         document.getElementById('creator-screen').style.display = 'none';
         gameStarted = true;
         
-        // Salvăm în localStorage
         localStorage.setItem('cozySimData', JSON.stringify({
-          name: sim.name,
-          color: sim.color,
-          needs: needs
+          name: sim.name, color: sim.color, needs: needs, timeOfDay: timeOfDay
         }));
       });
 
-      // Încărcare din localStorage (dacă există)
       const savedData = localStorage.getItem('cozySimData');
       if (savedData) {
         const data = JSON.parse(savedData);
@@ -295,8 +302,8 @@
         sim.name = data.name;
         sim.color = data.color;
         needs = data.needs;
+        if (data.timeOfDay) timeOfDay = data.timeOfDay;
         
-        // Marcăm culoarea salvată
         document.querySelectorAll('.color-option').forEach(el => {
           if (el.dataset.color === data.color) el.classList.add('selected');
         });
@@ -306,14 +313,26 @@
       function update() {
         if (!gameStarted) return;
 
-        // 1. Scăderea nevoilor
+        // Timpul trece (1 secunda reala = 10 minute in joc)
+        gameTime++;
+        if (gameTime >= 60) { // La fiecare 60 frames (1 sec)
+            timeOfDay += 0.1;
+            if (timeOfDay >= 24) timeOfDay = 0;
+            gameTime = 0;
+        }
+
+        // Scăderea nevoilor
         needs.foame = Math.max(0, needs.foame - 0.015);
         needs.energie = Math.max(0, needs.energie - 0.01);
         needs.igiena = Math.max(0, needs.igiena - 0.008);
         needs.distractie = Math.max(0, needs.distractie - 0.02);
         needs.social = Math.max(0, needs.social - 0.012);
 
-        // 2. Mișcarea sim-ului
+        // Animație de respirație (bob)
+        sim.bobOffset = Math.sin(Date.now() / 500) * 2;
+        npc.bobOffset = Math.sin(Date.now() / 550) * 2;
+
+        // Mișcare sim
         if (sim.state === 'walking') {
           const dx = sim.targetX - sim.x;
           const dy = sim.targetY - sim.y;
@@ -326,16 +345,21 @@
             sim.x = sim.targetX;
             sim.y = sim.targetY;
             sim.state = 'using';
-            sim.actionTimer = 120; // 2 secunde
+            sim.actionTimer = 120;
           }
         } else if (sim.state === 'using') {
           sim.actionTimer--;
           if (sim.actionTimer <= 0) sim.state = 'idle';
         }
 
-        // 3. Mișcarea NPC-ului (AI simplu: se plimbă random)
+        // Mișcare NPC + Dialog
+        if (npc.speechTimer > 0) {
+            npc.speechTimer--;
+            if (npc.speechTimer <= 0) npc.speechBubble = null;
+        }
+
         if (npc.state === 'idle') {
-          if (Math.random() < 0.005) { // 0.5% șansă la fiecare frame să se miște
+          if (Math.random() < 0.005) {
             npc.targetX = 80 + Math.random() * 400;
             npc.targetY = 80 + Math.random() * 250;
             npc.state = 'walking';
@@ -352,7 +376,7 @@
           }
         }
 
-        // 4. Actualizare UI
+        // UI Update
         const updateBar = (id, val) => {
           document.getElementById('val-' + id).innerText = Math.round(val) + '%';
           document.getElementById('bar-' + id).style.width = val + '%';
@@ -363,16 +387,24 @@
         updateBar('distractie', needs.distractie);
         updateBar('social', needs.social);
 
-        // Salvare periodică (la fiecare 5 secunde aproximativ)
+        // Salvăm
         if (Math.random() < 0.003) {
             localStorage.setItem('cozySimData', JSON.stringify({
-              name: sim.name, color: sim.color, needs: needs
+              name: sim.name, color: sim.color, needs: needs, timeOfDay: timeOfDay
             }));
         }
       }
 
       // --- DESENARE ---
       function draw() {
+        // Calculăm lumina în funcție de oră (0-24)
+        // Zi (8-18): Lumină caldă, Noapte (19-7): Întuneric cald
+        let dayNightAlpha = 0;
+        if (timeOfDay < 6 || timeOfDay > 20) dayNightAlpha = 0.7; // Noapte
+        else if (timeOfDay < 8) dayNightAlpha = 0.7 - ((timeOfDay - 6) / 2) * 0.7; // Zori
+        else if (timeOfDay > 18) dayNightAlpha = ((timeOfDay - 18) / 2) * 0.7; // Apus
+
+        // Fundal
         ctx.fillStyle = '#faf0e6';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -398,18 +430,19 @@
           ctx.fillText(obj.name, obj.x + obj.w / 2, obj.y + obj.h + 15);
         });
 
-        // Funcție pentru desenat personaje (ca să nu duplicăm codul)
+        // Funcție personaje
         function drawCharacter(char, isNPC) {
+          let yOffset = char.bobOffset;
+          
           ctx.shadowColor = 'rgba(0,0,0,0.1)';
           ctx.shadowBlur = 8;
           ctx.shadowOffsetY = 3;
 
-          // Dacă e sim-ul principal și îi e foame, se înroșește
           let cColor = char.color;
           if (!isNPC && (needs.foame < 20 || needs.energie < 20)) cColor = '#e57373';
 
           ctx.beginPath();
-          ctx.arc(char.x, char.y, 16, 0, Math.PI * 2);
+          ctx.arc(char.x, char.y + yOffset, 16, 0, Math.PI * 2);
           ctx.fillStyle = cColor;
           ctx.fill();
 
@@ -419,8 +452,8 @@
 
           // Ochi
           ctx.beginPath();
-          ctx.arc(char.x - 5, char.y - 4, 2.5, 0, Math.PI * 2);
-          ctx.arc(char.x + 5, char.y - 4, 2.5, 0, Math.PI * 2);
+          ctx.arc(char.x - 5, char.y - 4 + yOffset, 2.5, 0, Math.PI * 2);
+          ctx.arc(char.x + 5, char.y - 4 + yOffset, 2.5, 0, Math.PI * 2);
           ctx.fillStyle = '#4a3728';
           ctx.fill();
 
@@ -428,11 +461,78 @@
           ctx.font = '12px system-ui';
           ctx.fillStyle = '#8b7355';
           ctx.textAlign = 'center';
-          ctx.fillText(char.name, char.x, char.y - 26);
+          ctx.fillText(char.name, char.x, char.y - 26 + yOffset);
+        }
+
+        // Gânduri (Thought Bubble) pentru Sim
+        let lowestNeed = 'foame';
+        let lowestVal = needs.foame;
+        if (needs.energie < lowestVal) { lowestVal = needs.energie; lowestNeed = 'energie'; }
+        if (needs.igiena < lowestVal) { lowestVal = needs.igiena; lowestNeed = 'igiena'; }
+        if (needs.distractie < lowestVal) { lowestVal = needs.distractie; lowestNeed = 'distractie'; }
+        if (needs.social < lowestVal) { lowestVal = needs.social; lowestNeed = 'social'; }
+
+        if (lowestVal < 30 && sim.state === 'idle') {
+          const needObj = objects.find(o => o.need === lowestNeed) || { emoji: '💬' }; // Dacă e social, arată 💬
+          // Desenăm un balon de gândire
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.beginPath();
+          ctx.arc(sim.x + 20, sim.y - 40 + sim.bobOffset, 15, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.font = '16px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(needObj.emoji, sim.x + 20, sim.y - 35 + sim.bobOffset);
         }
 
         drawCharacter(npc, true);
         drawCharacter(sim, false);
+
+        // Dialog NPC
+        if (npc.speechBubble) {
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = '#d1d5db';
+            ctx.lineWidth = 2;
+            
+            // Măsurăm textul
+            ctx.font = '12px system-ui';
+            const textWidth = ctx.measureText(npc.speechBubble).width;
+            const boxW = textWidth + 20;
+            const boxH = 30;
+            const boxX = npc.x - boxW / 2;
+            const boxY = npc.y - 70 + npc.bobOffset;
+
+            // Desenăm cutia rotunjită
+            ctx.beginPath();
+            ctx.roundRect(boxX, boxY, boxW, boxH, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            // Mic triunghi dedesubt
+            ctx.beginPath();
+            ctx.moveTo(npc.x - 5, boxY + boxH);
+            ctx.lineTo(npc.x + 5, boxY + boxH);
+            ctx.lineTo(npc.x, boxY + boxH + 8);
+            ctx.fill();
+            ctx.stroke();
+
+            // Textul
+            ctx.fillStyle = '#4a3728';
+            ctx.textAlign = 'center';
+            ctx.fillText(npc.speechBubble, npc.x, boxY + 19);
+        }
+
+        // Overlay de noapte (lumina caldă)
+        if (dayNightAlpha > 0) {
+            ctx.fillStyle = `rgba(30, 40, 70, ${dayNightAlpha})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Bec cald în cameră
+            const gradient = ctx.createRadialGradient(300, 200, 50, 300, 200, 300);
+            gradient.addColorStop(0, `rgba(255, 200, 100, ${dayNightAlpha * 0.4})`);
+            gradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
       }
 
       // --- INTERACȚIUNE ---
@@ -445,20 +545,24 @@
         const clickX = (e.clientX - rect.left) * scaleX;
         const clickY = (e.clientY - rect.top) * scaleY;
 
-        // Verificăm dacă am dat click pe NPC
+        // Click pe NPC
         const dxNpc = clickX - npc.x;
         const dyNpc = clickY - npc.y;
         if (Math.sqrt(dxNpc*dxNpc + dyNpc*dyNpc) < 25) {
-          // Mergem să vorbim cu NPC-ul
-          sim.targetX = npc.x - 30; // Ne oprim lângă el
+          sim.targetX = npc.x - 30;
           sim.targetY = npc.y;
           sim.state = 'walking';
-          needs.social = Math.min(100, needs.social + 50); // Creștem socialul
+          needs.social = Math.min(100, needs.social + 50);
           document.getElementById('status-msg').innerText = "Vorbit cu " + npc.name + "! 💬";
+          
+          // Generăm un dialog aleatoriu
+          npc.speechBubble = dialogues[Math.floor(Math.random() * dialogues.length)];
+          npc.speechTimer = 180; // Afișat 3 secunde
+          
           return;
         }
 
-        // Verificăm obiecte
+        // Click pe Obiecte
         let clickedObject = null;
         for (let obj of objects) {
           if (clickX >= obj.x && clickX <= obj.x + obj.w &&
