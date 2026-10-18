@@ -15,7 +15,6 @@
       min-height: 100vh;
       font-family: system-ui, -apple-system, sans-serif;
       overflow: hidden;
-      transition: background 2s ease;
     }
 
     .game-container {
@@ -31,7 +30,6 @@
       box-shadow: 0 8px 32px rgba(0,0,0,0.08);
       display: block;
       cursor: grab;
-      transition: background 2s ease;
     }
     canvas:active { cursor: grabbing; }
 
@@ -238,7 +236,7 @@
         <div class="progress-bg"><div class="progress-fill fill-social" id="bar-social" style="width: 100%;"></div></div>
       </div>
 
-      <div class="status-msg" id="status-msg">Click to move / drag background to pan.</div>
+      <div class="status-msg" id="status-msg">Click to move / drag to pan.</div>
 
       <div class="controls">
         <button class="btn" id="open-shop-btn">🛒 Add Objects</button>
@@ -273,6 +271,7 @@
       let timeOfDay = 12;
       let gameTime = 0;
       let isEditMode = false;
+      let currentScene = 'inside'; // 'inside' sau 'outside'
       
       let camera = { x: 0, y: 0, zoom: 1 };
       let isPanning = false;
@@ -295,25 +294,7 @@
 
       let needs = { foame: 100, energie: 100, igiena: 100, distractie: 100, social: 100 };
 
-      // House layout definitions
-      const WALLS = [
-        { x: 50, y: 50, w: 500, h: 20 },   // Top wall
-        { x: 50, y: 50, w: 20, h: 300 },   // Left wall
-        { x: 530, y: 50, w: 20, h: 300 },  // Right wall
-        { x: 50, y: 330, w: 200, h: 20 },  // Bottom left wall
-        { x: 350, y: 330, w: 200, h: 20 }, // Bottom right wall
-      ];
-      
-      // Windows for visual
-      const WINDOWS = [
-        { x: 200, y: 50, w: 100, h: 20 },
-        { x: 50, y: 150, w: 20, h: 80 },
-        { x: 530, y: 150, w: 20, h: 80 },
-      ];
-
-      // Interior wall (split bedroom/living)
-      const INNER_WALL = { x: 300, y: 50, w: 20, h: 120 };
-
+      // Obiectele din casă
       let objects = [
         { id: 'fridge', name: 'Fridge', x: 70, y: 70, w: 40, h: 60, color: '#d1d5db', need: 'foame', emoji: '🍔' },
         { id: 'shower', name: 'Shower', x: 70, y: 270, w: 40, h: 40, color: '#bfdbfe', need: 'igiena', emoji: '🚿' },
@@ -399,7 +380,6 @@
           div.className = 'shop-item';
           div.innerHTML = `<span class="shop-item-emoji">${item.emoji}</span><span class="shop-item-name">${item.name}</span>`;
           div.addEventListener('click', () => {
-            // Place new object safely inside the house
             const newObj = { ...item, x: 150 + Math.random()*250, y: 150 + Math.random()*150 };
             objects.push(newObj);
             saveGame();
@@ -481,7 +461,8 @@
             if (npc.speechTimer <= 0) npc.speechBubble = null;
         }
 
-        if (npc.state === 'idle') {
+        // NPC only wanders inside
+        if (currentScene === 'inside' && npc.state === 'idle') {
           if (Math.random() < 0.005) {
             npc.targetX = 100 + Math.random() * 350;
             npc.targetY = 100 + Math.random() * 200;
@@ -512,7 +493,110 @@
         updateBar('social', needs.social);
       }
 
-      // --- DRAWING ---
+      // --- DRAWING HELPERS (GRAFICA) ---
+      
+      function drawCloud(x, y, scale) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.beginPath();
+        ctx.arc(x, y, 15 * scale, 0, Math.PI*2);
+        ctx.arc(x + 15*scale, y - 5*scale, 20 * scale, 0, Math.PI*2);
+        ctx.arc(x + 35*scale, y, 15 * scale, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      function drawTree(x, y) {
+        ctx.fillStyle = '#8b5a2b';
+        ctx.fillRect(x - 8, y - 40, 16, 40);
+        ctx.fillStyle = '#6b8e23';
+        ctx.beginPath();
+        ctx.arc(x, y - 50, 30, 0, Math.PI*2);
+        ctx.arc(x - 20, y - 35, 25, 0, Math.PI*2);
+        ctx.arc(x + 20, y - 35, 25, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      function drawHouse(x, y, scale, color) {
+        // Corpul casei
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, 100*scale, 80*scale);
+        // Acoperiș
+        ctx.fillStyle = '#a05a5a';
+        ctx.beginPath();
+        ctx.moveTo(x - 10*scale, y);
+        ctx.lineTo(x + 50*scale, y - 40*scale);
+        ctx.lineTo(x + 110*scale, y);
+        ctx.fill();
+        // Ușă
+        ctx.fillStyle = '#8b7355';
+        ctx.fillRect(x + 40*scale, y + 40*scale, 20*scale, 40*scale);
+        // Ferestre
+        ctx.fillStyle = '#ffeb3b';
+        ctx.fillRect(x + 15*scale, y + 20*scale, 15*scale, 15*scale);
+        ctx.fillRect(x + 70*scale, y + 20*scale, 15*scale, 15*scale);
+      }
+
+      function drawCharacter(char, isNPC) {
+        let yOffset = char.bobOffset;
+        ctx.save();
+        ctx.translate(char.x, char.y + yOffset);
+
+        // Umbră
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.beginPath(); ctx.ellipse(0, 15, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+        if (!char.facingRight) ctx.scale(-1, 1);
+
+        let cColor = char.color;
+        if (!isNPC && (needs.foame < 20 || needs.energie < 20)) cColor = '#e57373';
+        const darkerColor = isNPC ? '#8c72b5' : (cColor === '#e57373' ? '#c95b5b' : '#c4865a');
+
+        // Picioare
+        ctx.fillStyle = darkerColor;
+        ctx.beginPath(); ctx.roundRect(-6, 8, 5, 8, 2); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(2, 8, 5, 8, 2); ctx.fill();
+
+        // Corp (Capsulă)
+        ctx.fillStyle = cColor;
+        ctx.beginPath(); 
+        ctx.roundRect(-12, -12, 24, 22, 10); 
+        ctx.fill();
+
+        // Mâini
+        ctx.beginPath(); ctx.arc(-13, 0, 4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(13, 0, 4, 0, Math.PI*2); ctx.fill();
+
+        // Cap
+        ctx.beginPath(); ctx.arc(0, -18, 13, 0, Math.PI * 2); ctx.fill();
+
+        // Păr (dacă e cazul)
+        if (isNPC) {
+          // Pufi are urechi de pisică
+          ctx.beginPath();
+          ctx.moveTo(-10, -25); ctx.lineTo(-15, -35); ctx.lineTo(-5, -28); ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(10, -25); ctx.lineTo(15, -35); ctx.lineTo(5, -28); ctx.fill();
+        }
+
+        // Ochi
+        ctx.fillStyle = '#4a3728';
+        ctx.beginPath(); ctx.arc(4, -20, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(9, -20, 2.5, 0, Math.PI * 2); ctx.fill();
+        
+        // Obrajori
+        ctx.fillStyle = 'rgba(255, 150, 150, 0.5)';
+        ctx.beginPath(); ctx.arc(1, -15, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(12, -15, 3, 0, Math.PI*2); ctx.fill();
+
+        ctx.restore();
+
+        // Nume
+        ctx.font = '12px system-ui';
+        ctx.fillStyle = '#8b7355';
+        ctx.textAlign = 'center';
+        ctx.fillText(char.name, char.x, char.y - 38 + yOffset);
+      }
+
+      // --- DRAWING SCENE ---
       function draw() {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = '#faf0e6';
@@ -525,143 +609,193 @@
         ctx.scale(camera.zoom, camera.zoom);
         ctx.translate(-canvas.width / 2 + camera.x, -canvas.height / 2 + camera.y);
 
-        // Draw Floor (Wood)
-        ctx.fillStyle = '#e8d5c4';
-        ctx.fillRect(50, 50, 500, 300);
-        
-        // Draw room separator line
-        ctx.fillStyle = '#c1a893';
-        ctx.fillRect(50, 170, 500, 4); // Horizontal separator
+        // Culori cer
+        let skyColor = '#87CEEB';
+        if (timeOfDay < 6 || timeOfDay > 20) skyColor = '#1a1a3a';
+        else if (timeOfDay < 8) skyColor = '#ffb347';
+        else if (timeOfDay > 18) skyColor = '#ff7f50';
 
-        // Draw Windows (Sky)
-        let skyColor = '#87CEEB'; // Day
-        if (timeOfDay < 6 || timeOfDay > 20) skyColor = '#1a1a3a'; // Night
-        else if (timeOfDay < 8) skyColor = '#ffb347'; // Sunrise
-        else if (timeOfDay > 18) skyColor = '#ff7f50'; // Sunset
-
-        WINDOWS.forEach(win => {
+        if (currentScene === 'outside') {
+            // --- EXTERIOR ---
             ctx.fillStyle = skyColor;
-            ctx.fillRect(win.x, win.y, win.w, win.h);
+            ctx.fillRect(-500, -500, 1600, 1500);
+
+            // Nori (se mișcă ușor)
+            drawCloud(100 + Math.sin(Date.now()/5000)*20, 100, 1.5);
+            drawCloud(450 + Math.sin(Date.now()/6000)*30, 150, 1);
+            drawCloud(-100 + Math.sin(Date.now()/7000)*15, 80, 2);
+
+            // Iarbă
+            ctx.fillStyle = '#8fbc8f';
+            ctx.fillRect(-500, 200, 1600, 1000);
+
+            // Stradă
+            ctx.fillStyle = '#a9a9a9';
+            ctx.fillRect(-500, 350, 1600, 120);
+            // Linie drum
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 4;
-            ctx.strokeRect(win.x, win.y, win.w, win.h);
-        });
+            ctx.setLineDash([20, 20]);
+            ctx.beginPath(); ctx.moveTo(-500, 410); ctx.lineTo(1100, 410); ctx.stroke();
+            ctx.setLineDash([]); // reset
 
-        // Draw Walls
-        ctx.fillStyle = '#fdfbf7';
-        ctx.shadowColor = 'rgba(0,0,0,0.1)';
-        ctx.shadowBlur = 10;
-        ctx.shadowOffsetY = 5;
-        WALLS.forEach(wall => {
-            ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
-        });
-        ctx.fillRect(INNER_WALL.x, INNER_WALL.y, INNER_WALL.w, INNER_WALL.h);
-        ctx.shadowColor = 'transparent';
+            // Case vecini
+            drawHouse(-200, 250, 1, '#ffd1b3');
+            drawHouse(400, 280, 0.8, '#b3e0ff');
+            drawHouse(700, 240, 1.2, '#d9b3ff');
 
-        // Draw Door
-        ctx.fillStyle = '#8b7355';
-        ctx.fillRect(250, 330, 50, 20);
-        ctx.fillStyle = '#f4d06f';
-        ctx.beginPath(); ctx.arc(290, 340, 3, 0, Math.PI*2); ctx.fill();
+            // Casa ta (cu gard)
+            ctx.fillStyle = '#f4f4f4';
+            ctx.fillRect(100, 150, 400, 200);
+            drawHouse(100, 150, 1.2, '#fdfbf7'); // Draw over
+            // Gard
+            ctx.fillStyle = '#fff';
+            for(let i=80; i<550; i+=20) {
+                ctx.fillRect(i, 300, 10, 50);
+            }
+            ctx.fillRect(80, 320, 470, 5);
+            ctx.fillRect(80, 340, 470, 5);
 
-        // Objects
-        objects.forEach(obj => {
-          ctx.fillStyle = obj.color;
-          ctx.beginPath();
-          ctx.shadowColor = 'rgba(0,0,0,0.1)';
-          ctx.shadowBlur = 4;
-          ctx.shadowOffsetY = 2;
-          ctx.roundRect(obj.x, obj.y, obj.w, obj.h, 8);
-          ctx.fill();
-          ctx.shadowColor = 'transparent';
-
-          ctx.font = '24px Arial';
-          ctx.textAlign = 'center';
-          ctx.fillText(obj.emoji, obj.x + obj.w / 2, obj.y - 10);
-          ctx.font = '10px system-ui';
-          ctx.fillStyle = '#6b5b4d';
-          ctx.fillText(obj.name, obj.x + obj.w / 2, obj.y + obj.h + 15);
-        });
-
-        // Characters
-        function drawCharacter(char, isNPC) {
-          let yOffset = char.bobOffset;
-          ctx.save();
-          ctx.translate(char.x, char.y + yOffset);
-
-          ctx.fillStyle = 'rgba(0,0,0,0.1)';
-          ctx.beginPath(); ctx.ellipse(0, 15, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
-
-          if (!char.facingRight) ctx.scale(-1, 1);
-
-          let cColor = char.color;
-          if (!isNPC && (needs.foame < 20 || needs.energie < 20)) cColor = '#e57373';
-          const darkerColor = isNPC ? '#8c72b5' : (cColor === '#e57373' ? '#c95b5b' : '#c4865a');
-
-          ctx.fillStyle = darkerColor;
-          ctx.beginPath(); ctx.roundRect(-6, 8, 4, 8, 2); ctx.fill();
-          ctx.beginPath(); ctx.roundRect(2, 8, 4, 8, 2); ctx.fill();
-
-          ctx.fillStyle = cColor;
-          ctx.beginPath(); ctx.roundRect(-10, -10, 20, 20, 8); ctx.fill();
-
-          ctx.beginPath(); ctx.arc(-12, 0, 4, 0, Math.PI*2); ctx.fill();
-          ctx.beginPath(); ctx.arc(12, 0, 4, 0, Math.PI*2); ctx.fill();
-
-          ctx.beginPath(); ctx.arc(0, -16, 12, 0, Math.PI * 2); ctx.fill();
-
-          ctx.fillStyle = '#4a3728';
-          ctx.beginPath(); ctx.arc(3, -18, 2, 0, Math.PI * 2); ctx.fill();
-          ctx.beginPath(); ctx.arc(8, -18, 2, 0, Math.PI * 2); ctx.fill();
-
-          ctx.fillStyle = 'rgba(255, 150, 150, 0.4)';
-          ctx.beginPath(); ctx.arc(0, -14, 3, 0, Math.PI*2); ctx.fill();
-          ctx.beginPath(); ctx.arc(10, -14, 3, 0, Math.PI*2); ctx.fill();
-
-          ctx.restore();
-
-          ctx.font = '12px system-ui';
-          ctx.fillStyle = '#8b7355';
-          ctx.textAlign = 'center';
-          ctx.fillText(char.name, char.x, char.y - 36 + yOffset);
-        }
-
-        drawCharacter(npc, true);
-        drawCharacter(sim, false);
-
-        // NPC Dialogue
-        if (npc.speechBubble) {
-            ctx.fillStyle = 'white'; ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 2;
+            // Ușa casei tale (click aici pentru a intra)
+            ctx.fillStyle = '#8b7355';
+            ctx.fillRect(270, 300, 60, 80); 
+            ctx.fillStyle = '#f4d06f';
+            ctx.beginPath(); ctx.arc(320, 340, 4, 0, Math.PI*2); ctx.fill();
             ctx.font = '12px system-ui';
-            const textWidth = ctx.measureText(npc.speechBubble).width;
-            const boxW = textWidth + 20; const boxH = 30;
-            const boxX = npc.x - boxW / 2; const boxY = npc.y - 80 + npc.bobOffset;
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.fillText("ENTER", 300, 325);
 
-            ctx.beginPath(); ctx.roundRect(boxX, boxY, boxW, boxH, 8); ctx.fill(); ctx.stroke();
+            // Simbol gazon
+            ctx.font = '30px Arial';
+            ctx.fillStyle = '#fff';
+            ctx.fillText("🏡", 300, 130);
+
+        } else {
+            // --- INTERIOR ---
+            // Podea
+            ctx.fillStyle = '#e8d5c4';
+            ctx.fillRect(50, 50, 500, 300);
+            
+            // Covor
+            ctx.fillStyle = '#d9a0b3';
             ctx.beginPath();
-            ctx.moveTo(npc.x - 5, boxY + boxH); ctx.lineTo(npc.x + 5, boxY + boxH);
-            ctx.lineTo(npc.x, boxY + boxH + 8); ctx.fill(); ctx.stroke();
+            ctx.roundRect(150, 200, 300, 100, 10);
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
 
-            ctx.fillStyle = '#4a3728'; ctx.textAlign = 'center';
-            ctx.fillText(npc.speechBubble, npc.x, boxY + 19);
+            // Fereastră
+            ctx.fillStyle = skyColor;
+            ctx.fillRect(200, 50, 100, 20);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(200, 50, 100, 20);
+            ctx.beginPath(); ctx.moveTo(250, 50); ctx.lineTo(250, 70); ctx.stroke();
+
+            // Pereți
+            ctx.fillStyle = '#fdfbf7';
+            ctx.shadowColor = 'rgba(0,0,0,0.1)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 5;
+            ctx.fillRect(50, 50, 500, 20);   // Top
+            ctx.fillRect(50, 50, 20, 300);   // Left
+            ctx.fillRect(530, 50, 20, 300);  // Right
+            ctx.fillRect(50, 330, 200, 20);  // Bottom left
+            ctx.fillRect(350, 330, 200, 20); // Bottom right
+            ctx.fillRect(300, 50, 20, 120);  // Inner wall
+            ctx.shadowColor = 'transparent';
+
+            // Obiecte (desenate mai detaliat)
+            objects.forEach(obj => {
+              // Corp obiect
+              ctx.fillStyle = obj.color;
+              ctx.beginPath();
+              ctx.shadowColor = 'rgba(0,0,0,0.1)';
+              ctx.shadowBlur = 4;
+              ctx.shadowOffsetY = 2;
+              ctx.roundRect(obj.x, obj.y, obj.w, obj.h, 8);
+              ctx.fill();
+              ctx.shadowColor = 'transparent';
+
+              // Dacă e pat, adăugăm pernă
+              if (obj.id === 'bed') {
+                  ctx.fillStyle = '#fff';
+                  ctx.fillRect(obj.x + 5, obj.y + 5, 20, obj.h - 10);
+                  ctx.fillStyle = '#e8d5c4';
+                  ctx.fillRect(obj.x + 25, obj.y + 5, obj.w - 30, obj.h - 10);
+              }
+              // Dacă e TV, adăugăm ecran
+              if (obj.id === 'tv') {
+                  ctx.fillStyle = '#1a1a1a';
+                  ctx.fillRect(obj.x + 5, obj.y + 5, obj.w - 10, obj.h - 10);
+                  ctx.fillStyle = '#333';
+                  ctx.fillRect(obj.x + obj.w/2 - 2, obj.y + obj.h - 5, 4, 10); // Stand
+              }
+              // Dacă e frigider, adăugăm mâner
+              if (obj.id === 'fridge') {
+                  ctx.fillStyle = '#9ca3af';
+                  ctx.fillRect(obj.x + obj.w - 8, obj.y + 10, 4, 20);
+              }
+
+              // Emoji
+              ctx.font = '24px Arial';
+              ctx.textAlign = 'center';
+              ctx.fillText(obj.emoji, obj.x + obj.w / 2, obj.y - 10);
+              // Nume
+              ctx.font = '10px system-ui';
+              ctx.fillStyle = '#6b5b4d';
+              ctx.fillText(obj.name, obj.x + obj.w / 2, obj.y + obj.h + 15);
+            });
+
+            // Ușă
+            ctx.fillStyle = '#8b7355';
+            ctx.fillRect(250, 330, 50, 20);
+            ctx.fillStyle = '#f4d06f';
+            ctx.beginPath(); ctx.arc(290, 340, 4, 0, Math.PI*2); ctx.fill();
+            ctx.font = '10px system-ui';
+            ctx.fillStyle = '#fff';
+            ctx.fillText("EXIT", 275, 345);
+
+            // Draw NPC & Sim
+            drawCharacter(npc, true);
+            drawCharacter(sim, false);
+
+            // NPC Dialogue
+            if (npc.speechBubble) {
+                ctx.fillStyle = 'white'; ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 2;
+                ctx.font = '12px system-ui';
+                const textWidth = ctx.measureText(npc.speechBubble).width;
+                const boxW = textWidth + 20; const boxH = 30;
+                const boxX = npc.x - boxW / 2; const boxY = npc.y - 80 + npc.bobOffset;
+
+                ctx.beginPath(); ctx.roundRect(boxX, boxY, boxW, boxH, 8); ctx.fill(); ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(npc.x - 5, boxY + boxH); ctx.lineTo(npc.x + 5, boxY + boxH);
+                ctx.lineTo(npc.x, boxY + boxH + 8); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#4a3728'; ctx.textAlign = 'center';
+                ctx.fillText(npc.speechBubble, npc.x, boxY + 19);
+            }
+
+            // Thought Bubble
+            let lowestNeed = 'foame'; let lowestVal = needs.foame;
+            if (needs.energie < lowestVal) { lowestVal = needs.energie; lowestNeed = 'energie'; }
+            if (needs.igiena < lowestVal) { lowestVal = needs.igiena; lowestNeed = 'igiena'; }
+            if (needs.distractie < lowestVal) { lowestVal = needs.distractie; lowestNeed = 'distractie'; }
+            if (needs.social < lowestVal) { lowestVal = needs.social; lowestNeed = 'social'; }
+
+            if (lowestVal < 30 && sim.state === 'idle') {
+              const needObj = objects.find(o => o.need === lowestNeed) || { emoji: '💬' };
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+              ctx.beginPath(); ctx.arc(sim.x + 20, sim.y - 50 + sim.bobOffset, 15, 0, Math.PI * 2); ctx.fill();
+              ctx.font = '16px Arial'; ctx.textAlign = 'center';
+              ctx.fillText(needObj.emoji, sim.x + 20, sim.y - 45 + sim.bobOffset);
+            }
         }
 
-        // Thought Bubble
-        let lowestNeed = 'foame'; let lowestVal = needs.foame;
-        if (needs.energie < lowestVal) { lowestVal = needs.energie; lowestNeed = 'energie'; }
-        if (needs.igiena < lowestVal) { lowestVal = needs.igiena; lowestNeed = 'igiena'; }
-        if (needs.distractie < lowestVal) { lowestVal = needs.distractie; lowestNeed = 'distractie'; }
-        if (needs.social < lowestVal) { lowestVal = needs.social; lowestNeed = 'social'; }
-
-        if (lowestVal < 30 && sim.state === 'idle') {
-          const needObj = objects.find(o => o.need === lowestNeed) || { emoji: '💬' };
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-          ctx.beginPath(); ctx.arc(sim.x + 20, sim.y - 50 + sim.bobOffset, 15, 0, Math.PI * 2); ctx.fill();
-          ctx.font = '16px Arial'; ctx.textAlign = 'center';
-          ctx.fillText(needObj.emoji, sim.x + 20, sim.y - 45 + sim.bobOffset);
-        }
-
-        // Night Overlay
+        // Night Overlay (peste toată scena)
         ctx.setTransform(1, 0, 0, 1, 0, 0); 
         let dayNightAlpha = 0;
         if (timeOfDay < 6 || timeOfDay > 20) dayNightAlpha = 0.6;
@@ -671,12 +805,13 @@
         if (dayNightAlpha > 0) {
             ctx.fillStyle = `rgba(30, 40, 70, ${dayNightAlpha})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            // Cozy indoor light
-            const gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 50, canvas.width/2, canvas.height/2, 400);
-            gradient.addColorStop(0, `rgba(255, 200, 100, ${dayNightAlpha * 0.5})`);
-            gradient.addColorStop(1, 'transparent');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if(currentScene === 'inside') {
+                const gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 50, canvas.width/2, canvas.height/2, 400);
+                gradient.addColorStop(0, `rgba(255, 200, 100, ${dayNightAlpha * 0.5})`);
+                gradient.addColorStop(1, 'transparent');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
         }
 
         // Clock
@@ -711,7 +846,7 @@
         const screenX = (e.clientX - rect.left) * (canvas.width / rect.width);
         const screenY = (e.clientY - rect.top) * (canvas.height / rect.height);
 
-        if (isEditMode) {
+        if (isEditMode && currentScene === 'inside') {
           const worldPos = getMouseWorldPos(e);
           const obj = getObjectAt(worldPos.x, worldPos.y);
           if (obj) {
@@ -750,15 +885,36 @@
       canvas.addEventListener('click', (e) => {
         if (!gameStarted || isEditMode || hasMoved) return; 
         const worldPos = getMouseWorldPos(e);
-        
-        // Simple wall collision check (don't walk outside)
-        if (worldPos.x < 70 || worldPos.x > 530 || worldPos.y < 70 || worldPos.y > 330) {
-            return;
-        }
-
         const clickX = worldPos.x;
         const clickY = worldPos.y;
 
+        if (currentScene === 'outside') {
+            // Verificăm dacă dăm click pe ușa casei
+            if (clickX >= 260 && clickX <= 340 && clickY >= 280 && clickY <= 380) {
+                currentScene = 'inside';
+                sim.x = 275; sim.y = 300;
+                sim.targetX = 275; sim.targetY = 300;
+                document.getElementById('status-msg').innerText = "Welcome home!";
+                playPop();
+            }
+            return;
+        }
+
+        // Dacă suntem înăuntru
+        // Verificăm dacă dăm click pe ușa de ieșire
+        if (clickX >= 240 && clickX <= 310 && clickY >= 330 && clickY <= 350) {
+            currentScene = 'outside';
+            sim.x = 300; sim.y = 400;
+            sim.targetX = 300; sim.targetY = 400;
+            document.getElementById('status-msg').innerText = "You are outside!";
+            playPop();
+            return;
+        }
+
+        // Coliziune cu pereții (nu ieși din casă)
+        if (clickX < 70 || clickX > 530 || clickY < 70 || clickY > 330) return;
+
+        // Click NPC
         const dxNpc = clickX - npc.x;
         const dyNpc = clickY - npc.y;
         if (Math.sqrt(dxNpc*dxNpc + dyNpc*dyNpc) < 30) {
@@ -772,6 +928,7 @@
           return;
         }
 
+        // Click Obiecte
         const clickedObject = getObjectAt(clickX, clickY);
         if (clickedObject) {
           sim.targetX = clickedObject.x + clickedObject.w / 2;
