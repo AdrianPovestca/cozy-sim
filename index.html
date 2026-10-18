@@ -9,7 +9,7 @@
 <body>
 
   <!-- 1. ECRANUL PRINCIPAL (MAIN MENU) -->
-  <div id="main-menu">
+  <div id="main-menu" class="screen active">
     <div class="menu-content">
       <h1>Cozy Sim</h1>
       <p class="subtitle">A little life, just for you.</p>
@@ -27,7 +27,7 @@
   </div>
 
   <!-- 2. SETTINGS MODAL -->
-  <div id="settings-modal">
+  <div id="settings-modal" class="modal">
     <div class="settings-box">
       <h2>Settings ⚙️</h2>
       <div class="setting-row">
@@ -41,60 +41,69 @@
     </div>
   </div>
 
-  <!-- 3. CREATORUL DE PERSONAJ (CREATE-A-SIM) -->
-  <div id="creator-screen" style="display: none;">
-    <div class="creator-box">
-      <h1>Create your Sim 🌸</h1>
+  <!-- 3. CREATORUL DE PERSONAJ (CREATE-A-SIM 3D) -->
+  <div id="creator-screen" class="screen">
+    <div class="creator-layout">
       
-      <div class="creator-section">
-        <label>Name</label>
-        <input type="text" id="sim-name" placeholder="Your name..." maxlength="12" value="Sim">
+      <!-- Partea stângă: Previzualizare 3D -->
+      <div class="creator-preview">
+        <canvas id="preview-canvas"></canvas>
       </div>
 
-      <div class="creator-section">
-        <label>Gender</label>
-        <div class="btn-group" id="gender-picker">
-          <button class="option-btn selected" data-gender="female">👩 Female</button>
-          <button class="option-btn" data-gender="male">👨 Male</button>
+      <!-- Partea dreaptă: Opțiuni -->
+      <div class="creator-options">
+        <h1>Create your Sim 🌸</h1>
+        
+        <div class="creator-section">
+          <label>Name</label>
+          <input type="text" id="sim-name" placeholder="Your name..." maxlength="12" value="Sim">
         </div>
-      </div>
 
-      <div class="creator-section">
-        <label>Skin Color</label>
-        <div class="color-picker" id="skin-picker">
-          <div class="color-option selected" style="background: #ffdfc4;" data-color="#ffdfc4"></div>
-          <div class="color-option" style="background: #f0c8a0;" data-color="#f0c8a0"></div>
-          <div class="color-option" style="background: #d4a373;" data-color="#d4a373"></div>
-          <div class="color-option" style="background: #8d5524;" data-color="#8d5524"></div>
+        <div class="creator-section">
+          <label>Gender</label>
+          <div class="btn-group" id="gender-picker">
+            <button class="option-btn selected" data-gender="female">👩 Female</button>
+            <button class="option-btn" data-gender="male">👨 Male</button>
+          </div>
         </div>
-      </div>
 
-      <div class="creator-section">
-        <label>Hair Color</label>
-        <div class="color-picker" id="hair-picker">
-          <div class="color-option selected" style="background: #6d4c41;" data-color="#6d4c41"></div>
-          <div class="color-option" style="background: #f4d06f;" data-color="#f4d06f"></div>
-          <div class="color-option" style="background: #1a1a1a;" data-color="#1a1a1a"></div>
-          <div class="color-option" style="background: #d9a0b3;" data-color="#d9a0b3"></div>
+        <div class="creator-section">
+          <label>Skin Color</label>
+          <div class="color-picker" id="skin-picker">
+            <div class="color-option selected" style="background: #ffdfc4;" data-color="#ffdfc4"></div>
+            <div class="color-option" style="background: #f0c8a0;" data-color="#f0c8a0"></div>
+            <div class="color-option" style="background: #d4a373;" data-color="#d4a373"></div>
+            <div class="color-option" style="background: #8d5524;" data-color="#8d5524"></div>
+          </div>
         </div>
-      </div>
 
-      <div class="creator-section">
-        <label>Shirt Color</label>
-        <div class="color-picker" id="shirt-picker">
-          <div class="color-option selected" style="background: #e8a87c;" data-color="#e8a87c"></div>
-          <div class="color-option" style="background: #a8c3a6;" data-color="#a8c3a6"></div>
-          <div class="color-option" style="background: #89b0ae;" data-color="#89b0ae"></div>
-          <div class="color-option" style="background: #b19cd9;" data-color="#b19cd9"></div>
+        <div class="creator-section">
+          <label>Hair Color</label>
+          <div class="color-picker" id="hair-picker">
+            <div class="color-option selected" style="background: #6d4c41;" data-color="#6d4c41"></div>
+            <div class="color-option" style="background: #f4d06f;" data-color="#f4d06f"></div>
+            <div class="color-option" style="background: #1a1a1a;" data-color="#1a1a1a"></div>
+            <div class="color-option" style="background: #d9a0b3;" data-color="#d9a0b3"></div>
+          </div>
         </div>
-      </div>
 
-      <button class="start-btn" id="start-btn">Enter World</button>
+        <div class="creator-section">
+          <label>Shirt Color</label>
+          <div class="color-picker" id="shirt-picker">
+            <div class="color-option selected" style="background: #e8a87c;" data-color="#e8a87c"></div>
+            <div class="color-option" style="background: #a8c3a6;" data-color="#a8c3a6"></div>
+            <div class="color-option" style="background: #89b0ae;" data-color="#89b0ae"></div>
+            <div class="color-option" style="background: #b19cd9;" data-color="#b19cd9"></div>
+          </div>
+        </div>
+
+        <button class="start-btn" id="start-btn">Enter World</button>
+      </div>
     </div>
   </div>
 
   <!-- 4. MAGAZIN -->
-  <div id="shop-modal">
+  <div id="shop-modal" class="modal">
     <div class="shop-box">
       <h2>Buy Furniture 🛋️</h2>
       <div class="shop-grid" id="shop-grid"></div>
@@ -103,7 +112,7 @@
   </div>
 
   <!-- 5. JOCUL PROPRIU-ZIS -->
-  <div class="game-container" id="game-ui" style="display: none;">
+  <div class="game-container screen" id="game-ui">
     <div id="game-wrapper">
       <canvas id="game-canvas"></canvas>
     </div>
