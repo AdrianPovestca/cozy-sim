@@ -4,10 +4,133 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cozy Sim</title>
-  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* CSS-ul este integrat aici ca să nu avem probleme cu folderele */
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+    }
+
+    body {
+      background: #f5e6d3;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow: hidden; /* Să nu avem scroll bars inutile */
+    }
+
+    canvas {
+      background: #faf0e6;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+      display: block;
+      max-width: 95vw;
+      max-height: 90vh;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
+
   <canvas id="game" width="600" height="400"></canvas>
-  <script src="js/main.js"></script>
+
+  <script>
+    // Așteptăm ca pagina să se încarce complet înainte să pornim jocul
+    window.onload = () => {
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+
+      // Personajul
+      const sim = {
+        x: 300,
+        y: 200,
+        targetX: 300,
+        targetY: 200,
+        speed: 2.5,
+        color: '#e8a87c',
+        name: 'Adrian' // Poți schimba numele aici deocamdată
+      };
+
+      // Click pe canvas → setăm destinația
+      canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        // Calculăm scale-ul în caz că canvas-ul e redimensionat de CSS
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
+        sim.targetX = (e.clientX - rect.left) * scaleX;
+        sim.targetY = (e.clientY - rect.top) * scaleY;
+      });
+
+      // Mișcare lină spre țintă
+      function updateSim() {
+        const dx = sim.targetX - sim.x;
+        const dy = sim.targetY - sim.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > sim.speed) {
+          sim.x += (dx / dist) * sim.speed;
+          sim.y += (dy / dist) * sim.speed;
+        } else {
+          sim.x = sim.targetX;
+          sim.y = sim.targetY;
+        }
+      }
+
+      // Desenare
+      function draw() {
+        // Fundal
+        ctx.fillStyle = '#faf0e6';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Covor moale
+        ctx.fillStyle = '#f0e0d0';
+        ctx.beginPath();
+        ctx.roundRect(80, 60, 440, 280, 20);
+        ctx.fill();
+
+        // Sim-ul cu umbră
+        ctx.shadowColor = 'rgba(0,0,0,0.1)';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 3;
+
+        ctx.beginPath();
+        ctx.arc(sim.x, sim.y, 16, 0, Math.PI * 2);
+        ctx.fillStyle = sim.color;
+        ctx.fill();
+
+        // Resetăm umbra pentru ochișori și text
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+
+        // Ochișori
+        ctx.beginPath();
+        ctx.arc(sim.x - 5, sim.y - 4, 2.5, 0, Math.PI * 2);
+        ctx.arc(sim.x + 5, sim.y - 4, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#4a3728';
+        ctx.fill();
+
+        // Nume
+        ctx.font = '12px system-ui';
+        ctx.fillStyle = '#8b7355';
+        ctx.textAlign = 'center';
+        ctx.fillText(sim.name, sim.x, sim.y - 26);
+      }
+
+      // Game loop
+      function loop() {
+        updateSim();
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      // Pornim jocul
+      loop();
+    };
+  </script>
 </body>
 </html>
