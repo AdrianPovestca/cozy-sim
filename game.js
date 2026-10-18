@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildWorld } from './world3d.js';
+import { buildWorld, toggleFloor } from './world3d.js';
 
 const canvas = document.getElementById('game-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -14,12 +14,15 @@ scene.background = new THREE.Color('#87CEEB');
 scene.fog = new THREE.Fog('#87CEEB', 30, 60);
 
 const camera = new THREE.PerspectiveCamera(45, 800 / 600, 0.1, 100);
-camera.position.set(15, 15, 15);
+// Cameră izometrică (de sus)
+camera.position.set(15, 25, 15);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 2, 0);
+controls.target.set(0, 0, 0);
 controls.enableDamping = true;
-controls.maxPolarAngle = Math.PI / 2 - 0.05;
+controls.maxPolarAngle = Math.PI / 2.2; // Limitare unghi ca să nu vezi sub casă
+controls.minDistance = 5;
+controls.maxDistance = 40;
 
 // --- LUMINI ---
 scene.add(new THREE.AmbientLight('#fff5e6', 0.6));
@@ -31,7 +34,8 @@ sunLight.shadow.mapSize.height = 2048;
 scene.add(sunLight);
 
 // --- LUMEA ---
-const interactables = buildWorld(scene);
+// Primim interactables, etajul 1 și etajul 2 pentru a le putea ascunde/arăta
+const { interactables, floor1Group, floor2Group } = buildWorld(scene);
 
 // --- PERSONAJE ---
 function createHumanCharacter(name, shirtColor, isNPC) {
@@ -78,14 +82,9 @@ let targetPos = new THREE.Vector3(0, 0.2, 6);
 let simMoving = false;
 let isUsingAction = false;
 let actionTimer = 0;
+let currentFloor = 1; // 1 sau 2
 
-// --- BUILD MODE ---
-let isBuildMode = false;
-let draggedObject = null;
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-
-// Iconițe
+// --- ICONIȚE ---
 function makeIconTexture(text) {
     const c = document.createElement('canvas'); c.width = 64; c.height = 64;
     const ctx = c.getContext('2d');
@@ -117,6 +116,28 @@ document.getElementById('start-btn').addEventListener('click', () => {
   gameStarted = true;
 });
 
+// --- ETaje ---
+const floorToggleBtn = document.getElementById('floor-toggle-btn');
+floorToggleBtn.addEventListener('click', () => {
+    if (currentFloor === 1) {
+        currentFloor = 2;
+        toggleFloor(1, false); // Ascunde etajul 1
+        toggleFloor(2, true);  // Arată etajul 2
+        sim.position.y = 4.2;
+        targetPos.y = 4.2;
+        floorToggleBtn.innerText = "🏠 Go Downstairs";
+        document.getElementById('status-msg').innerText = "You are upstairs.";
+    } else {
+        currentFloor = 1;
+        toggleFloor(1, true);  // Arată etajul 1
+        toggleFloor(2, false); // Ascunde etajul 2
+        sim.position.y = 0.2;
+        targetPos.y = 0.2;
+        floorToggleBtn.innerText = "🏠 Go Upstairs";
+        document.getElementById('status-msg').innerText = "You are downstairs.";
+    }
+});
+
 // --- MAGAZIN ---
 const shopModal = document.getElementById('shop-modal');
 const shopGrid = document.getElementById('shop-grid');
@@ -135,7 +156,6 @@ document.getElementById('open-shop-btn').addEventListener('click', () => {
         div.className = 'shop-item';
         div.innerHTML = `<span class="shop-item-emoji">${item.icon}</span><span class="shop-item-name">${item.name}</span>`;
         div.addEventListener('click', () => {
-            // Creare obiect 3D simplu
             let mesh;
             if (item.id === 'plant') {
                 mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.8, 8), new THREE.MeshStandardMaterial({ color: item.color }));
@@ -151,14 +171,16 @@ document.getElementById('open-shop-btn').addEventListener('click', () => {
                 mesh.position.y = 2;
             }
             mesh.castShadow = true; mesh.receiveShadow = true;
-            mesh.position.x = 0; mesh.position.z = 0;
-            mesh.userData.isFurniture = true;
+            mesh.position.x = 0; 
+            mesh.position.z = 0;
+            // Punem obiectul la etajul curent
+            if (currentFloor === 2) mesh.position.y += 4.1;
             
             scene.add(mesh);
-            interactables.push({ mesh, type: 'none', pos: mesh.position }); // Obiectele noi nu oferă nevoi
+            interactables.push({ mesh, type: 'none', pos: mesh.position });
             
             shopModal.style.display = 'none';
-            document.getElementById('status-msg').innerText = "Bought " + item.name + "! Enter Build Mode to move it.";
+            document.getElementById('status-msg').innerText = "Bought " + item.name + "! Enter Build Mode.";
         });
         shopGrid.appendChild(div);
     });
@@ -170,6 +192,11 @@ document.getElementById('close-shop').addEventListener('click', () => {
 });
 
 // --- BUILD MODE ---
+let isBuildMode = false;
+let draggedObject = null;
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
 const buildBtn = document.getElementById('build-mode-btn');
 buildBtn.addEventListener('click', () => {
     isBuildMode = !isBuildMode;
@@ -177,8 +204,8 @@ buildBtn.addEventListener('click', () => {
         buildBtn.innerText = "✅ Exit Build Mode";
         buildBtn.classList.add('active');
         canvas.classList.add('build-mode');
-        controls.enabled = false; // Oprim rotirea camerei cu click stânga
-        document.getElementById('status-msg').innerText = "Click & drag furniture to move it.";
+        controls.enabled = false; 
+        document.getElementById('status-msg').innerText = "Drag furniture to move it.";
     } else {
         buildBtn.innerText = "🔨 Build Mode";
         buildBtn.classList.remove('active');
@@ -191,14 +218,12 @@ buildBtn.addEventListener('click', () => {
 // --- INTERACȚIUNE ---
 renderer.domElement.addEventListener('mousedown', (e) => {
     if (!gameStarted) return;
-    
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
 
     if (isBuildMode) {
-        // Căutăm obiectul pe care dăm click
         const furnitureMeshes = interactables.map(i => i.mesh);
         const intersects = raycaster.intersectObjects(furnitureMeshes);
         if (intersects.length > 0) {
@@ -215,9 +240,7 @@ renderer.domElement.addEventListener('mousemove', (e) => {
     mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
 
-    // Intersectăm cu podeaua (le avem în interactables? Nu, trebuie să găsim podeaua)
-    // Pentru simplitate, mutăm obiectul pe un plan orizontal invizibil
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), currentFloor === 2 ? -4.1 : 0);
     const target = new THREE.Vector3();
     raycaster.ray.intersectPlane(plane, target);
     
@@ -228,10 +251,7 @@ renderer.domElement.addEventListener('mousemove', (e) => {
 });
 
 renderer.domElement.addEventListener('mouseup', () => {
-    if (draggedObject) {
-        draggedObject = null;
-        // Aici am putea salva noile poziții
-    }
+    if (draggedObject) draggedObject = null;
 });
 
 renderer.domElement.addEventListener('click', (e) => {
@@ -246,9 +266,15 @@ renderer.domElement.addEventListener('click', (e) => {
     const hit = intersects[0].object;
     const objData = interactables.find(i => i.mesh === hit);
     if (objData && objData.type !== 'none') {
+      // Verificăm dacă obiectul e la etajul curent
+      const objFloor = objData.pos.y > 2 ? 2 : 1;
+      if (objFloor !== currentFloor) {
+          document.getElementById('status-msg').innerText = "Object is on another floor!";
+          return;
+      }
+
       targetPos.copy(objData.pos);
       targetPos.x += 1.5; 
-      targetPos.y = objData.pos.y > 2 ? 4.2 : 0.2;
       simMoving = true;
       sim.userData.nextAction = objData.type;
       document.getElementById('status-msg').innerText = "Walking to " + objData.type;
@@ -281,14 +307,14 @@ function animate() {
     if (isUsingAction) {
         actionTimer -= delta;
         if (sim.userData.currentAction === 'energie') {
-            sim.position.y = 4.6 + Math.sin(time * 2) * 0.1;
+            sim.position.y = (currentFloor === 2 ? 4.6 : 0.6) + Math.sin(time * 2) * 0.1;
             sim.rotation.x = Math.PI / 2;
         } else if (sim.userData.currentAction === 'igiena') {
-            sim.position.y = 4.2 + Math.abs(Math.sin(time * 10)) * 0.2;
+            sim.position.y = (currentFloor === 2 ? 4.2 : 0.2) + Math.abs(Math.sin(time * 10)) * 0.2;
         }
         if (actionTimer <= 0) {
             isUsingAction = false;
-            sim.position.y = sim.position.y > 2 ? 4.2 : 0.2;
+            sim.position.y = currentFloor === 2 ? 4.2 : 0.2;
             sim.rotation.x = 0;
             actionSprite.visible = false;
             document.getElementById('status-msg').innerText = "Done!";
@@ -306,8 +332,6 @@ function animate() {
         const walkSwing = Math.sin(time * 10) * 0.5;
         sim.userData.legL.rotation.x = walkSwing; sim.userData.legR.rotation.x = -walkSwing;
         sim.userData.armL.rotation.x = -walkSwing; sim.userData.armR.rotation.x = walkSwing;
-        if (sim.position.y < 1 && targetPos.y > 2) sim.position.y = 4.2;
-        else if (sim.position.y > 3 && targetPos.y < 1) sim.position.y = 0.2;
       } else {
         simMoving = false;
         sim.userData.legL.rotation.x = 0; sim.userData.legR.rotation.x = 0;
@@ -334,7 +358,7 @@ function animate() {
     }
 
     // NPC Wander
-    if (Math.random() < 0.005) {
+    if (Math.random() < 0.005 && currentFloor === 1) {
         npc.userData.target = new THREE.Vector3(-6 + Math.random() * 12, 0.2, -6 + Math.random() * 12);
     }
     if (npc.userData.target) {
