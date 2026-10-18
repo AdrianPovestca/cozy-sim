@@ -3,24 +3,21 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { buildWorld, toggleFloor } from './world3d.js';
 
 // --- UI LOGIC ---
-document.getElementById('play-btn').addEventListener('click', () => {
-    document.getElementById('main-menu').style.display = 'none';
-    document.getElementById('creator-screen').style.display = 'flex';
-});
+const screens = document.querySelectorAll('.screen');
+function showScreen(id) {
+    screens.forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
 
-document.getElementById('settings-btn').addEventListener('click', () => {
-    document.getElementById('settings-modal').style.display = 'flex';
-});
-document.getElementById('close-settings').addEventListener('click', () => {
-    document.getElementById('settings-modal').style.display = 'none';
-});
-
+document.getElementById('play-btn').addEventListener('click', () => showScreen('creator-screen'));
+document.getElementById('settings-btn').addEventListener('click', () => document.getElementById('settings-modal').style.display = 'flex');
+document.getElementById('close-settings').addEventListener('click', () => document.getElementById('settings-modal').style.display = 'none');
 document.getElementById('credits-btn').addEventListener('click', () => {
     const credits = document.getElementById('credits-text');
     credits.style.display = credits.style.display === 'none' ? 'block' : 'none';
 });
 
-// --- SETUP THREE.JS ---
+// --- SETUP JOC PRINCIPAL ---
 const canvas = document.getElementById('game-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(800, 600);
@@ -42,7 +39,6 @@ controls.maxPolarAngle = Math.PI / 2.2;
 controls.minDistance = 5;
 controls.maxDistance = 40;
 
-// --- LUMINI ---
 scene.add(new THREE.AmbientLight('#fff5e6', 0.6));
 const sunLight = new THREE.DirectionalLight('#ffe8c4', 1.2);
 sunLight.position.set(20, 30, 20);
@@ -51,11 +47,31 @@ sunLight.shadow.mapSize.width = 2048;
 sunLight.shadow.mapSize.height = 2048;
 scene.add(sunLight);
 
-// --- LUMEA ---
 const { interactables, floor1Group, floor2Group } = buildWorld(scene);
 
-// --- PERSONAJE ---
-// Funcție pentru a crea un caracter uman cu opțiuni
+// --- SETUP PREVIEW 3D (MENIU CREARE) ---
+const previewCanvas = document.getElementById('preview-canvas');
+const previewRenderer = new THREE.WebGLRenderer({ canvas: previewCanvas, antialias: true, alpha: true });
+previewRenderer.setSize(450, 500); // Dimensiunea zonei de preview
+previewRenderer.shadowMap.enabled = true;
+
+const previewScene = new THREE.Scene();
+// Fundal transparent ca să se vadă culoarea din CSS
+previewScene.background = null; 
+
+const previewCamera = new THREE.PerspectiveCamera(45, 450 / 500, 0.1, 100);
+previewCamera.position.set(0, 2.5, 6);
+previewCamera.lookAt(0, 1.5, 0);
+
+const previewLight = new THREE.DirectionalLight('#ffffff', 1.5);
+previewLight.position.set(5, 10, 5);
+previewLight.castShadow = true;
+previewScene.add(previewLight);
+previewScene.add(new THREE.AmbientLight('#ffffff', 0.8));
+
+let previewCharacter = null;
+
+// --- FUNCȚIE CREARE PERSONAJ ---
 function createHumanCharacter(name, skinColor, hairColor, shirtColor, gender, isNPC = false) {
   const group = new THREE.Group();
   
@@ -64,7 +80,6 @@ function createHumanCharacter(name, skinColor, hairColor, shirtColor, gender, is
   const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColor });
   const hairMat = new THREE.MeshStandardMaterial({ color: hairColor });
 
-  // Ajustăm forma corpului în funcție de gen
   let shoulderWidth = gender === 'male' ? 0.6 : 0.4;
   let waistWidth = gender === 'male' ? 0.5 : 0.35;
 
@@ -82,11 +97,9 @@ function createHumanCharacter(name, skinColor, hairColor, shirtColor, gender, is
   const headGeo = new THREE.SphereGeometry(0.4, 16, 16);
   const head = new THREE.Mesh(headGeo, skinMat); head.position.set(0, 2.6, 0); head.castShadow = true;
 
-  // Păr (formă de calotă)
   const hairGeo = new THREE.SphereGeometry(0.42, 16, 16, 0, Math.PI * 2, 0, Math.PI / 1.8);
   const hair = new THREE.Mesh(hairGeo, hairMat); hair.position.set(0, 2.62, 0); hair.castShadow = true;
   
-  // Dacă e fată, îi punem părul mai lung (o sferă întinsă pe spate)
   if (gender === 'female' && !isNPC) {
       const longHairGeo = new THREE.SphereGeometry(0.45, 16, 16);
       const longHair = new THREE.Mesh(longHairGeo, hairMat);
@@ -101,39 +114,31 @@ function createHumanCharacter(name, skinColor, hairColor, shirtColor, gender, is
   return group;
 }
 
-// Creăm personajul principal (o vom recrea când dăm Start)
-let sim = createHumanCharacter('Sim', '#ffdfc4', '#6d4c41', '#e8a87c', 'female');
-sim.position.set(0, 0.2, 6);
-scene.add(sim);
-
-const npc = createHumanCharacter('Pufi', '#f0c8a0', '#6d4c41', '#b19cd9', 'male', true);
-npc.position.set(-3, 0.2, 2);
-scene.add(npc);
-
-let needs = { foame: 100, energie: 100, igiena: 100, distractie: 100, social: 100 };
-let gameStarted = false;
-let targetPos = new THREE.Vector3(0, 0.2, 6);
-let simMoving = false;
-let isUsingAction = false;
-let actionTimer = 0;
-let currentFloor = 1;
-
-// --- LOGICA CREATORULUI ---
+// --- STARE CREATOR ---
 let selectedGender = 'female';
 let selectedSkin = '#ffdfc4';
 let selectedHair = '#6d4c41';
 let selectedShirt = '#e8a87c';
 
-// Selectare Gen
+function updatePreview() {
+    if (previewCharacter) previewScene.remove(previewCharacter);
+    previewCharacter = createHumanCharacter('Preview', selectedSkin, selectedHair, selectedShirt, selectedGender);
+    previewScene.add(previewCharacter);
+}
+
+// Generăm primul preview
+updatePreview();
+
+// --- EVENIMENTE CREATOR ---
 document.querySelectorAll('#gender-picker .option-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         document.querySelectorAll('#gender-picker .option-btn').forEach(b => b.classList.remove('selected'));
         e.target.classList.add('selected');
         selectedGender = e.target.dataset.gender;
+        updatePreview();
     });
 });
 
-// Funcție generică pentru a selecta o culoare dintr-un picker
 function setupColorPicker(pickerId, callback) {
     const picker = document.getElementById(pickerId);
     picker.addEventListener('click', (e) => {
@@ -141,6 +146,7 @@ function setupColorPicker(pickerId, callback) {
             picker.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
             e.target.classList.add('selected');
             callback(e.target.dataset.color);
+            updatePreview();
         }
     });
 }
@@ -149,28 +155,41 @@ setupColorPicker('skin-picker', (color) => selectedSkin = color);
 setupColorPicker('hair-picker', (color) => selectedHair = color);
 setupColorPicker('shirt-picker', (color) => selectedShirt = color);
 
-// Start Game
+// --- START JOC ---
+let sim = null;
+let npc = createHumanCharacter('Pufi', '#f0c8a0', '#6d4c41', '#b19cd9', 'male', true);
+npc.position.set(-3, 0.2, 2);
+scene.add(npc);
+
 document.getElementById('start-btn').addEventListener('click', () => {
   const nameInput = document.getElementById('sim-name').value.trim();
   const finalName = nameInput || 'Sim';
   document.getElementById('ui-sim-name').innerText = finalName;
 
-  // Ștergem personajul vechi și îl creăm pe cel nou cu setările alese
-  scene.remove(sim);
+  // Ștergem preview-ul
+  if (previewCharacter) previewScene.remove(previewCharacter);
+
+  // Creăm personajul în lumea mare
+  if (sim) scene.remove(sim);
   sim = createHumanCharacter(finalName, selectedSkin, selectedHair, selectedShirt, selectedGender);
   sim.position.set(0, 0.2, 6);
   scene.add(sim);
   targetPos.set(0, 0.2, 6);
 
-  document.getElementById('creator-screen').style.display = 'none';
-  document.getElementById('game-ui').style.display = 'flex';
-  
+  showScreen('game-ui');
   gameStarted = true;
   setTimeout(() => { renderer.setSize(800, 600); }, 100);
 });
 
+// --- RESTUL LOGICII JOCULUI ---
+let needs = { foame: 100, energie: 100, igiena: 100, distractie: 100, social: 100 };
+let gameStarted = false;
+let targetPos = new THREE.Vector3(0, 0.2, 6);
+let simMoving = false;
+let isUsingAction = false;
+let actionTimer = 0;
+let currentFloor = 1;
 
-// --- ICONIȚE ---
 function makeIconTexture(text) {
     const c = document.createElement('canvas'); c.width = 64; c.height = 64;
     const ctx = c.getContext('2d');
@@ -184,157 +203,17 @@ const actionSprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: '#fff' }
 actionSprite.scale.set(1, 1, 1); actionSprite.visible = false;
 scene.add(actionSprite);
 
-// --- BUTON ETAJ ---
 const floorToggleBtn = document.getElementById('floor-toggle-btn');
 floorToggleBtn.addEventListener('click', () => {
     if (currentFloor === 1) {
         currentFloor = 2; toggleFloor(1, false); toggleFloor(2, true);
         sim.position.y = 4.2; targetPos.y = 4.2;
         floorToggleBtn.innerText = "🏠 Go Downstairs";
-        document.getElementById('status-msg').innerText = "You are upstairs.";
     } else {
         currentFloor = 1; toggleFloor(1, true); toggleFloor(2, false);
         sim.position.y = 0.2; targetPos.y = 0.2;
         floorToggleBtn.innerText = "🏠 Go Upstairs";
-        document.getElementById('status-msg').innerText = "You are downstairs.";
     }
-});
-
-// --- MAGAZIN ---
-const shopModal = document.getElementById('shop-modal');
-const shopGrid = document.getElementById('shop-grid');
-const shopCatalog = [
-    { id: 'plant', name: 'Plant', color: '#a8c3a6', icon: '🪴' },
-    { id: 'lamp', name: 'Lamp', color: '#f4d06f', icon: '💡' },
-    { id: 'chair', name: 'Chair', color: '#d9a0b3', icon: '🪑' },
-    { id: 'picture', name: 'Picture', color: '#e8a87c', icon: '🖼️' }
-];
-
-document.getElementById('open-shop-btn').addEventListener('click', () => {
-    shopGrid.innerHTML = '';
-    shopCatalog.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'shop-item';
-        div.innerHTML = `<span class="shop-item-emoji">${item.icon}</span><span class="shop-item-name">${item.name}</span>`;
-        div.addEventListener('click', () => {
-            let mesh;
-            if (item.id === 'plant') {
-                mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.8, 8), new THREE.MeshStandardMaterial({ color: item.color }));
-                mesh.position.y = 0.4;
-            } else if (item.id === 'lamp') {
-                mesh = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.5, 8), new THREE.MeshStandardMaterial({ color: item.color }));
-                mesh.position.y = 0.75;
-            } else if (item.id === 'chair') {
-                mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: item.color }));
-                mesh.position.y = 0.5;
-            } else {
-                mesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1, 0.1), new THREE.MeshStandardMaterial({ color: item.color }));
-                mesh.position.y = 2;
-            }
-            mesh.castShadow = true; mesh.receiveShadow = true;
-            mesh.position.x = 0; mesh.position.z = 0;
-            if (currentFloor === 2) mesh.position.y += 4.1;
-            
-            scene.add(mesh);
-            interactables.push({ mesh, type: 'none', pos: mesh.position });
-            
-            shopModal.style.display = 'none';
-            document.getElementById('status-msg').innerText = "Bought " + item.name + "!";
-        });
-        shopGrid.appendChild(div);
-    });
-    shopModal.style.display = 'flex';
-});
-
-document.getElementById('close-shop').addEventListener('click', () => {
-    shopModal.style.display = 'none';
-});
-
-// --- BUILD MODE ---
-let isBuildMode = false;
-let draggedObject = null;
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-
-const buildBtn = document.getElementById('build-mode-btn');
-buildBtn.addEventListener('click', () => {
-    isBuildMode = !isBuildMode;
-    if (isBuildMode) {
-        buildBtn.innerText = "✅ Exit Build Mode";
-        buildBtn.classList.add('active');
-        canvas.classList.add('build-mode');
-        controls.enabled = false; 
-        document.getElementById('status-msg').innerText = "Drag furniture to move it.";
-    } else {
-        buildBtn.innerText = "🔨 Build Mode";
-        buildBtn.classList.remove('active');
-        canvas.classList.remove('build-mode');
-        controls.enabled = true;
-        document.getElementById('status-msg').innerText = "Game mode active.";
-    }
-});
-
-// --- INTERACȚIUNE ---
-renderer.domElement.addEventListener('mousedown', (e) => {
-    if (!gameStarted) return;
-    const rect = renderer.domElement.getBoundingClientRect();
-    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera);
-
-    if (isBuildMode) {
-        const furnitureMeshes = interactables.map(i => i.mesh);
-        const intersects = raycaster.intersectObjects(furnitureMeshes);
-        if (intersects.length > 0) {
-            draggedObject = intersects[0].object;
-        }
-    }
-});
-
-renderer.domElement.addEventListener('mousemove', (e) => {
-    if (!gameStarted || !isBuildMode || !draggedObject) return;
-    
-    const rect = renderer.domElement.getBoundingClientRect();
-    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera);
-
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), currentFloor === 2 ? -4.1 : 0);
-    const target = new THREE.Vector3();
-    raycaster.ray.intersectPlane(plane, target);
-    
-    if (target) {
-        draggedObject.position.x = target.x;
-        draggedObject.position.z = target.z;
-    }
-});
-
-renderer.domElement.addEventListener('mouseup', () => {
-    if (draggedObject) draggedObject = null;
-});
-
-renderer.domElement.addEventListener('click', (e) => {
-  if (!gameStarted || isUsingAction || isBuildMode) return;
-  const rect = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
-  
-  const intersects = raycaster.intersectObjects(interactables.map(i => i.mesh));
-  if (intersects.length > 0) {
-    const hit = intersects[0].object;
-    const objData = interactables.find(i => i.mesh === hit);
-    if (objData && objData.type !== 'none') {
-      const objFloor = objData.pos.y > 2 ? 2 : 1;
-      if (objFloor !== currentFloor) return;
-
-      targetPos.copy(objData.pos);
-      targetPos.x += 1.5; 
-      simMoving = true;
-      sim.userData.nextAction = objData.type;
-      document.getElementById('status-msg').innerText = "Walking to " + objData.type;
-    }
-  }
 });
 
 // --- LOOP ---
@@ -345,7 +224,14 @@ function animate() {
   const delta = clock.getDelta();
   const time = Date.now() / 1000;
 
+  // Randăm preview-ul (dacă suntem în meniu)
+  if (document.getElementById('creator-screen').classList.contains('active')) {
+      previewCharacter.rotation.y = Math.sin(time) * 0.5; // Se rotește ușor
+      previewRenderer.render(previewScene, previewCamera);
+  }
+
   if (gameStarted) {
+    // ... (Logica de nevoi și mișcare rămâne la fel)
     needs.foame = Math.max(0, needs.foame - 0.01);
     needs.energie = Math.max(0, needs.energie - 0.008);
     needs.igiena = Math.max(0, needs.igiena - 0.005);
@@ -412,7 +298,6 @@ function animate() {
         actionSprite.position.y += 3;
     }
 
-    // NPC Wander
     if (Math.random() < 0.005 && currentFloor === 1) {
         npc.userData.target = new THREE.Vector3(-6 + Math.random() * 12, 0.2, -6 + Math.random() * 12);
     }
