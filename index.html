@@ -8,10 +8,48 @@
 </head>
 <body>
 
-  <div id="creator-screen">
+  <!-- 1. ECRANUL PRINCIPAL (MAIN MENU) -->
+  <div id="main-menu">
+    <div class="menu-content">
+      <h1>Cozy Sim</h1>
+      <p class="subtitle">A little life, just for you.</p>
+      
+      <div class="menu-buttons">
+        <button class="menu-btn primary" id="play-btn">▶ Play</button>
+        <button class="menu-btn" id="settings-btn">⚙ Settings</button>
+        <button class="menu-btn" id="credits-btn">❤ Credits</button>
+      </div>
+      
+      <div id="credits-text" style="display: none; margin-top: 20px; color: #8b7355; font-size: 0.9rem;">
+        Made with love by Adrian 🌸
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. SETTINGS MODAL -->
+  <div id="settings-modal">
+    <div class="settings-box">
+      <h2>Settings ⚙️</h2>
+      <div class="setting-row">
+        <label>Graphics Quality:</label>
+        <select id="quality-select">
+          <option value="high">High (Shadows)</option>
+          <option value="low">Low (Faster)</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label>Music Volume:</label>
+        <input type="range" min="0" max="100" value="50" id="volume-slider">
+      </div>
+      <button class="close-btn" id="close-settings">Back to Menu</button>
+    </div>
+  </div>
+
+  <!-- 3. CREATORUL DE PERSONAJ -->
+  <div id="creator-screen" style="display: none;">
     <div class="creator-box">
-      <h1>Welcome! 🌸</h1>
-      <p style="color: #a88f76; margin-bottom: 20px;">Create your human sim.</p>
+      <h1>Create your Sim 🌸</h1>
+      <p style="color: #a88f76; margin-bottom: 20px;">Who are you today?</p>
       
       <label>What is your name?</label>
       <input type="text" id="sim-name" placeholder="Your name..." maxlength="12" value="Sim">
@@ -29,6 +67,7 @@
     </div>
   </div>
 
+  <!-- 4. MAGAZIN -->
   <div id="shop-modal">
     <div class="shop-box">
       <h2>Buy Furniture 🛋️</h2>
@@ -37,7 +76,8 @@
     </div>
   </div>
 
-  <div class="game-container">
+  <!-- 5. JOCUL PROPRIU-ZIS -->
+  <div class="game-container" id="game-ui" style="display: none;">
     <div id="game-wrapper">
       <canvas id="game-canvas"></canvas>
     </div>
