@@ -3,41 +3,56 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { buildWorld, toggleFloor } from './world3d.js';
 
 // --- UI LOGIC ---
-const screens = document.querySelectorAll('.screen');
+const uiScreens = document.querySelectorAll('.overlay-screen');
 function showScreen(id) {
-    screens.forEach(s => s.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
+    uiScreens.forEach(s => s.classList.remove('active'));
+    if (id) document.getElementById(id).classList.add('active');
 }
 
-document.getElementById('play-btn').addEventListener('click', () => showScreen('creator-screen'));
-document.getElementById('settings-btn').addEventListener('click', () => document.getElementById('settings-modal').style.display = 'flex');
-document.getElementById('close-settings').addEventListener('click', () => document.getElementById('settings-modal').style.display = 'none');
+document.getElementById('play-btn').addEventListener('click', () => {
+    showScreen('creator-screen');
+    // Camera face zoom pe personaj
+    controls.enabled = false; 
+    camera.position.set(2, 2, 3);
+    controls.target.set(0, 1.5, 2);
+});
+
+document.getElementById('settings-btn').addEventListener('click', () => showScreen('settings-modal'));
+document.getElementById('close-settings').addEventListener('click', () => showScreen('main-menu'));
 document.getElementById('credits-btn').addEventListener('click', () => {
     const credits = document.getElementById('credits-text');
     credits.style.display = credits.style.display === 'none' ? 'block' : 'none';
 });
 
-// --- SETUP JOC PRINCIPAL ---
+// --- SETUP THREE.JS ---
 const canvas = document.getElementById('game-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setSize(800, 600);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// Canvas Fullscreen
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+window.addEventListener('resize', onWindowResize);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#87CEEB');
 scene.fog = new THREE.Fog('#87CEEB', 30, 60);
 
-const camera = new THREE.PerspectiveCamera(45, 800 / 600, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(15, 25, 15);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 0, 0);
+controls.target.set(0, 2, 0);
 controls.enableDamping = true;
 controls.maxPolarAngle = Math.PI / 2.2;
-controls.minDistance = 5;
+controls.minDistance = 2;
 controls.maxDistance = 40;
+controls.enabled = false; // Dezactivat până intrăm în joc
 
 scene.add(new THREE.AmbientLight('#fff5e6', 0.6));
 const sunLight = new THREE.DirectionalLight('#ffe8c4', 1.2);
@@ -48,28 +63,6 @@ sunLight.shadow.mapSize.height = 2048;
 scene.add(sunLight);
 
 const { interactables, floor1Group, floor2Group } = buildWorld(scene);
-
-// --- SETUP PREVIEW 3D (MENIU CREARE) ---
-const previewCanvas = document.getElementById('preview-canvas');
-const previewRenderer = new THREE.WebGLRenderer({ canvas: previewCanvas, antialias: true, alpha: true });
-previewRenderer.setSize(450, 500); // Dimensiunea zonei de preview
-previewRenderer.shadowMap.enabled = true;
-
-const previewScene = new THREE.Scene();
-// Fundal transparent ca să se vadă culoarea din CSS
-previewScene.background = null; 
-
-const previewCamera = new THREE.PerspectiveCamera(45, 450 / 500, 0.1, 100);
-previewCamera.position.set(0, 2.5, 6);
-previewCamera.lookAt(0, 1.5, 0);
-
-const previewLight = new THREE.DirectionalLight('#ffffff', 1.5);
-previewLight.position.set(5, 10, 5);
-previewLight.castShadow = true;
-previewScene.add(previewLight);
-previewScene.add(new THREE.AmbientLight('#ffffff', 0.8));
-
-let previewCharacter = null;
 
 // --- FUNCȚIE CREARE PERSONAJ ---
 function createHumanCharacter(name, skinColor, hairColor, shirtColor, gender, isNPC = false) {
@@ -114,28 +107,29 @@ function createHumanCharacter(name, skinColor, hairColor, shirtColor, gender, is
   return group;
 }
 
-// --- STARE CREATOR ---
+// Personaje
+let sim = createHumanCharacter('Sim', '#ffdfc4', '#6d4c41', '#e8a87c', 'female');
+sim.position.set(0, 0.2, 2);
+scene.add(sim);
+
+const npc = createHumanCharacter('Pufi', '#f0c8a0', '#6d4c41', '#b19cd9', 'male', true);
+npc.position.set(-3, 0.2, -2);
+scene.add(npc);
+
+// Setări
 let selectedGender = 'female';
 let selectedSkin = '#ffdfc4';
 let selectedHair = '#6d4c41';
 let selectedShirt = '#e8a87c';
+let gameStarted = false;
 
-function updatePreview() {
-    if (previewCharacter) previewScene.remove(previewCharacter);
-    previewCharacter = createHumanCharacter('Preview', selectedSkin, selectedHair, selectedShirt, selectedGender);
-    previewScene.add(previewCharacter);
-}
-
-// Generăm primul preview
-updatePreview();
-
-// --- EVENIMENTE CREATOR ---
+// --- LOGICA CREATORULUI ---
 document.querySelectorAll('#gender-picker .option-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         document.querySelectorAll('#gender-picker .option-btn').forEach(b => b.classList.remove('selected'));
         e.target.classList.add('selected');
         selectedGender = e.target.dataset.gender;
-        updatePreview();
+        updateSimModel();
     });
 });
 
@@ -146,7 +140,7 @@ function setupColorPicker(pickerId, callback) {
             picker.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
             e.target.classList.add('selected');
             callback(e.target.dataset.color);
-            updatePreview();
+            updateSimModel();
         }
     });
 }
@@ -155,36 +149,35 @@ setupColorPicker('skin-picker', (color) => selectedSkin = color);
 setupColorPicker('hair-picker', (color) => selectedHair = color);
 setupColorPicker('shirt-picker', (color) => selectedShirt = color);
 
+function updateSimModel() {
+    if (!sim) return;
+    const currentName = document.getElementById('sim-name').value || 'Sim';
+    scene.remove(sim);
+    sim = createHumanCharacter(currentName, selectedSkin, selectedHair, selectedShirt, selectedGender);
+    sim.position.set(0, 0.2, 2);
+    scene.add(sim);
+}
+
 // --- START JOC ---
-let sim = null;
-let npc = createHumanCharacter('Pufi', '#f0c8a0', '#6d4c41', '#b19cd9', 'male', true);
-npc.position.set(-3, 0.2, 2);
-scene.add(npc);
-
 document.getElementById('start-btn').addEventListener('click', () => {
-  const nameInput = document.getElementById('sim-name').value.trim();
-  const finalName = nameInput || 'Sim';
-  document.getElementById('ui-sim-name').innerText = finalName;
+  updateSimModel(); // Aplicăm ultimele setări
 
-  // Ștergem preview-ul
-  if (previewCharacter) previewScene.remove(previewCharacter);
+  document.getElementById('ui-sim-name').innerText = sim.userData.name;
+  
+  showScreen(null); // Ascundem toate meniurile
+  document.getElementById('game-hud').style.display = 'block'; // Arătăm HUD-ul
+  
+  // Reset Camera
+  controls.enabled = true;
+  camera.position.set(15, 25, 15);
+  controls.target.set(0, 2, 0);
 
-  // Creăm personajul în lumea mare
-  if (sim) scene.remove(sim);
-  sim = createHumanCharacter(finalName, selectedSkin, selectedHair, selectedShirt, selectedGender);
-  sim.position.set(0, 0.2, 6);
-  scene.add(sim);
-  targetPos.set(0, 0.2, 6);
-
-  showScreen('game-ui');
   gameStarted = true;
-  setTimeout(() => { renderer.setSize(800, 600); }, 100);
 });
 
-// --- RESTUL LOGICII JOCULUI ---
+// --- RESTUL JOCULUI ---
 let needs = { foame: 100, energie: 100, igiena: 100, distractie: 100, social: 100 };
-let gameStarted = false;
-let targetPos = new THREE.Vector3(0, 0.2, 6);
+let targetPos = new THREE.Vector3(0, 0.2, 2);
 let simMoving = false;
 let isUsingAction = false;
 let actionTimer = 0;
@@ -208,15 +201,14 @@ floorToggleBtn.addEventListener('click', () => {
     if (currentFloor === 1) {
         currentFloor = 2; toggleFloor(1, false); toggleFloor(2, true);
         sim.position.y = 4.2; targetPos.y = 4.2;
-        floorToggleBtn.innerText = "🏠 Go Downstairs";
+        floorToggleBtn.innerText = "🏠 Downstairs";
     } else {
         currentFloor = 1; toggleFloor(1, true); toggleFloor(2, false);
         sim.position.y = 0.2; targetPos.y = 0.2;
-        floorToggleBtn.innerText = "🏠 Go Upstairs";
+        floorToggleBtn.innerText = "🏠 Upstairs";
     }
 });
 
-// --- LOOP ---
 const clock = new THREE.Clock();
 
 function animate() {
@@ -224,14 +216,14 @@ function animate() {
   const delta = clock.getDelta();
   const time = Date.now() / 1000;
 
-  // Randăm preview-ul (dacă suntem în meniu)
-  if (document.getElementById('creator-screen').classList.contains('active')) {
-      previewCharacter.rotation.y = Math.sin(time) * 0.5; // Se rotește ușor
-      previewRenderer.render(previewScene, previewCamera);
+  // Dacă suntem în Creator, rotim personajul ușor
+  if (document.getElementById('creator-screen').classList.contains('active') && sim) {
+      sim.rotation.y = Math.sin(time * 1.5) * 0.3; 
   }
 
   if (gameStarted) {
-    // ... (Logica de nevoi și mișcare rămâne la fel)
+    sim.rotation.y = 0; // Reset rotație când jucăm
+
     needs.foame = Math.max(0, needs.foame - 0.01);
     needs.energie = Math.max(0, needs.energie - 0.008);
     needs.igiena = Math.max(0, needs.igiena - 0.005);
@@ -297,30 +289,11 @@ function animate() {
         actionSprite.position.copy(sim.position);
         actionSprite.position.y += 3;
     }
-
-    if (Math.random() < 0.005 && currentFloor === 1) {
-        npc.userData.target = new THREE.Vector3(-6 + Math.random() * 12, 0.2, -6 + Math.random() * 12);
-    }
-    if (npc.userData.target) {
-        const dir = new THREE.Vector3().subVectors(npc.userData.target, npc.position);
-        dir.y = 0;
-        if (dir.length() > 0.2) {
-            dir.normalize();
-            npc.position.addScaledVector(dir, 1.5 * delta);
-            const targetLook = npc.position.clone().add(dir);
-            npc.lookAt(targetLook);
-            const swing = Math.sin(time * 10) * 0.5;
-            npc.userData.legL.rotation.x = swing; npc.userData.legR.rotation.x = -swing;
-            npc.userData.armL.rotation.x = -swing; npc.userData.armR.rotation.x = swing;
-        } else {
-            npc.userData.legL.rotation.x = 0; npc.userData.legR.rotation.x = 0;
-            npc.userData.armL.rotation.x = 0; npc.userData.armR.rotation.x = 0;
-        }
-    }
   }
 
   controls.update();
   renderer.render(scene, camera);
 }
 
+onWindowResize();
 animate();
