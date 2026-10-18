@@ -37,33 +37,59 @@
           <option value="low">Low (Faster)</option>
         </select>
       </div>
-      <div class="setting-row">
-        <label>Music Volume:</label>
-        <input type="range" min="0" max="100" value="50" id="volume-slider">
-      </div>
       <button class="close-btn" id="close-settings">Back to Menu</button>
     </div>
   </div>
 
-  <!-- 3. CREATORUL DE PERSONAJ -->
+  <!-- 3. CREATORUL DE PERSONAJ (CREATE-A-SIM) -->
   <div id="creator-screen" style="display: none;">
     <div class="creator-box">
       <h1>Create your Sim 🌸</h1>
-      <p style="color: #a88f76; margin-bottom: 20px;">Who are you today?</p>
       
-      <label>What is your name?</label>
-      <input type="text" id="sim-name" placeholder="Your name..." maxlength="12" value="Sim">
-
-      <label>Choose a shirt color:</label>
-      <div class="color-picker" id="color-picker">
-        <div class="color-option" style="background: #e8a87c;" data-color="#e8a87c"></div>
-        <div class="color-option" style="background: #a8c3a6;" data-color="#a8c3a6"></div>
-        <div class="color-option" style="background: #89b0ae;" data-color="#89b0ae"></div>
-        <div class="color-option" style="background: #d9a0b3;" data-color="#d9a0b3"></div>
-        <div class="color-option" style="background: #b19cd9;" data-color="#b19cd9"></div>
+      <div class="creator-section">
+        <label>Name</label>
+        <input type="text" id="sim-name" placeholder="Your name..." maxlength="12" value="Sim">
       </div>
 
-      <button class="start-btn" id="start-btn">Start Cozy Life</button>
+      <div class="creator-section">
+        <label>Gender</label>
+        <div class="btn-group" id="gender-picker">
+          <button class="option-btn selected" data-gender="female">👩 Female</button>
+          <button class="option-btn" data-gender="male">👨 Male</button>
+        </div>
+      </div>
+
+      <div class="creator-section">
+        <label>Skin Color</label>
+        <div class="color-picker" id="skin-picker">
+          <div class="color-option selected" style="background: #ffdfc4;" data-color="#ffdfc4"></div>
+          <div class="color-option" style="background: #f0c8a0;" data-color="#f0c8a0"></div>
+          <div class="color-option" style="background: #d4a373;" data-color="#d4a373"></div>
+          <div class="color-option" style="background: #8d5524;" data-color="#8d5524"></div>
+        </div>
+      </div>
+
+      <div class="creator-section">
+        <label>Hair Color</label>
+        <div class="color-picker" id="hair-picker">
+          <div class="color-option selected" style="background: #6d4c41;" data-color="#6d4c41"></div>
+          <div class="color-option" style="background: #f4d06f;" data-color="#f4d06f"></div>
+          <div class="color-option" style="background: #1a1a1a;" data-color="#1a1a1a"></div>
+          <div class="color-option" style="background: #d9a0b3;" data-color="#d9a0b3"></div>
+        </div>
+      </div>
+
+      <div class="creator-section">
+        <label>Shirt Color</label>
+        <div class="color-picker" id="shirt-picker">
+          <div class="color-option selected" style="background: #e8a87c;" data-color="#e8a87c"></div>
+          <div class="color-option" style="background: #a8c3a6;" data-color="#a8c3a6"></div>
+          <div class="color-option" style="background: #89b0ae;" data-color="#89b0ae"></div>
+          <div class="color-option" style="background: #b19cd9;" data-color="#b19cd9"></div>
+        </div>
+      </div>
+
+      <button class="start-btn" id="start-btn">Enter World</button>
     </div>
   </div>
 
