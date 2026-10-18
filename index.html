@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cozy Sim</title>
+  <title>Cozy Sim 3D</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -22,16 +22,24 @@
       gap: 20px;
       align-items: flex-start;
       max-width: 95vw;
+      height: 95vh;
     }
 
-    canvas {
-      background: #faf0e6;
+    #game-wrapper {
+      position: relative;
       border-radius: 16px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      overflow: hidden;
+      background: #faf0e6;
+    }
+
+    #game-container {
       display: block;
       cursor: grab;
+      width: 800px;
+      height: 600px;
     }
-    canvas:active { cursor: grabbing; }
+    #game-container:active { cursor: grabbing; }
 
     /* --- UI PANEL --- */
     .needs-panel {
@@ -43,7 +51,8 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
-      height: 400px;
+      height: 600px;
+      overflow-y: auto;
     }
 
     .needs-panel h3 {
@@ -89,6 +98,7 @@
       font-style: italic;
       margin-top: auto;
       padding-top: 10px;
+      min-height: 40px;
     }
 
     /* --- BUTOANE JOC --- */
@@ -121,26 +131,6 @@
     
     .btn-danger { color: #e57373; border-color: #e57373; }
     .btn-danger:hover { background: #ffebee; }
-
-    /* --- MODAL SHOP --- */
-    #shop-modal {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 50;
-    }
-
-    .shop-box { background: #fff; padding: 30px; border-radius: 20px; width: 500px; text-align: center; }
-    .shop-box h2 { color: #8b7355; margin-bottom: 20px; }
-    
-    .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-
-    .shop-item {
-      background: #faf0e6; padding: 15px; border-radius: 12px; cursor: pointer;
-      transition: transform 0.2s, background 0.2s; border: 2px solid transparent;
-    }
-    .shop-item:hover { transform: scale(1.05); background: #f0e0d0; }
-    
-    .shop-item-emoji { font-size: 30px; display: block; margin-bottom: 5px; }
-    .shop-item-name { font-size: 14px; color: #6b5b4d; font-weight: bold; }
 
     /* --- CREATOR SCREEN --- */
     #creator-screen {
@@ -201,16 +191,10 @@
     </div>
   </div>
 
-  <div id="shop-modal">
-    <div class="shop-box">
-      <h2>Cozy Shop 🛍️</h2>
-      <div class="shop-grid" id="shop-grid"></div>
-      <button class="btn" id="close-shop-btn">Close</button>
-    </div>
-  </div>
-
   <div class="game-container">
-    <canvas id="game" width="600" height="400"></canvas>
+    <div id="game-wrapper">
+      <div id="game-container"></div>
+    </div>
     
     <div class="needs-panel">
       <h3 id="ui-sim-name">Needs</h3>
@@ -236,254 +220,344 @@
         <div class="progress-bg"><div class="progress-fill fill-social" id="bar-social" style="width: 100%;"></div></div>
       </div>
 
-      <div class="status-msg" id="status-msg">Click to move / drag to pan.</div>
+      <div class="status-msg" id="status-msg">Click to move / drag to rotate.</div>
 
       <div class="controls">
-        <button class="btn" id="open-shop-btn">🛒 Add Objects</button>
-        <button class="btn btn-outline" id="edit-mode-btn">✏️ Edit Room</button>
-        <button class="btn btn-outline btn-danger" id="reset-btn" style="font-size: 0.8rem; padding: 8px;">🔄 Reset Life</button>
+        <button class="btn btn-outline btn-danger" id="reset-btn" style="font-size: 0.8rem; padding: 8px; margin-top: 10px;">🔄 Reset Life</button>
       </div>
     </div>
   </div>
 
-  <script>
-    window.onload = () => {
-      const canvas = document.getElementById('game');
-      const ctx = canvas.getContext('2d');
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
 
-      // --- AUDIO ---
-      let audioCtx = null;
-      function initAudio() {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      function playPop() {
-        if (!audioCtx) return;
-        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.type = 'sine'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-      }
+  <script type="module">
+    import * as THREE from 'three';
 
-      // --- GAME STATE ---
-      let timeOfDay = 12;
-      let gameTime = 0;
-      let isEditMode = false;
-      let currentScene = 'inside'; 
+    // --- AUDIO ---
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    function playPop() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.type = 'sine'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    // --- THREE.JS SETUP ---
+    const container = document.getElementById('game-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#f5e6d3');
+    scene.fog = new THREE.Fog('#f5e6d3', 20, 40);
+
+    const camera = new THREE.PerspectiveCamera(45, 800 / 600, 0.1, 100);
+    camera.position.set(0, 12, 12);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(800, 600);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    // --- LUMINI ---
+    const ambientLight = new THREE.AmbientLight('#fff5e6', 0.6);
+    scene.add(ambientLight);
+
+    const sunLight = new THREE.DirectionalLight('#ffe8c4', 1.2);
+    sunLight.position.set(10, 20, 10);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.left = -20;
+    sunLight.shadow.camera.right = 20;
+    sunLight.shadow.camera.top = 20;
+    sunLight.shadow.camera.bottom = -20;
+    scene.add(sunLight);
+
+    // --- HELPERS PENTRU CONSTRUCȚIE ---
+    function createBox(w, h, d, color, x, y, z) {
+      const geo = new THREE.BoxGeometry(w, h, d);
+      const mat = new THREE.MeshStandardMaterial({ color });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    }
+
+    // --- PODELE SI IARBA ---
+    const grass = createBox(40, 0.2, 40, '#8fbc8f', 0, -0.1, 0);
+    scene.add(grass);
+
+    // Podeaua casei
+    const floor = createBox(14, 0.1, 12, '#e8d5c4', 0, 0.05, 0);
+    scene.add(floor);
+
+    // --- CASA (PEREȚI) ---
+    const wallColor = '#fdfbf7';
+    // Perete spate
+    scene.add(createBox(14, 4, 0.5, wallColor, 0, 2, -6));
+    // Perete stânga
+    scene.add(createBox(0.5, 4, 12, wallColor, -7, 2, 0));
+    // Perete dreapta
+    scene.add(createBox(0.5, 4, 12, wallColor, 7, 2, 0));
+    // Perete față (cu loc de ușă)
+    scene.add(createBox(5, 4, 0.5, wallColor, -4.5, 2, 6));
+    scene.add(createBox(5, 4, 0.5, wallColor, 4.5, 2, 6));
+    // Perete despărțitor interior
+    scene.add(createBox(0.5, 4, 6, wallColor, 0, 2, -3));
+
+    // --- MOBILĂ 3D ---
+    // Pat
+    const bedBase = createBox(3, 1, 4, '#8b5a2b', 4.5, 0.5, -4);
+    const bedMattrass = createBox(2.8, 0.5, 3.8, '#fff', 4.5, 1.2, -4);
+    const bedBlanket = createBox(2.8, 0.3, 2, '#fbcfe8', 4.5, 1.4, -3);
+    const bedPillow = createBox(2, 0.4, 1, '#fdfbf7', 4.5, 1.5, -5);
+    scene.add(bedBase, bedMattrass, bedBlanket, bedPillow);
+
+    // Frigider
+    const fridge = createBox(2, 3.5, 2, '#d1d5db', -5.5, 1.75, -4);
+    scene.add(fridge);
+    const fridgeHandle = createBox(0.1, 0.5, 0.1, '#9ca3af', -4.6, 2, -4);
+    scene.add(fridgeHandle);
+
+    // TV
+    const tvStand = createBox(3, 1, 1.5, '#4b5563', 4.5, 0.5, 4);
+    const tvScreen = createBox(2.6, 1.5, 0.2, '#1a1a1a', 4.5, 2, 4);
+    scene.add(tvStand, tvScreen);
+
+    // Duș
+    const showerBase = createBox(2, 0.2, 2, '#bfdbfe', -5.5, 0.1, 4);
+    const showerGlass = createBox(2, 3, 0.1, 'rgba(255,255,255,0.3)', -5.5, 1.5, 5);
+    const showerGlass2 = createBox(0.1, 3, 2, 'rgba(255,255,255,0.3)', -6.5, 1.5, 4);
+    scene.add(showerBase, showerGlass, showerGlass2);
+
+    // Covor
+    const rug = createBox(6, 0.05, 4, '#d9a0b3', 0, 0.1, 0);
+    scene.add(rug);
+
+    // Ușă
+    const door = createBox(2, 3, 0.2, '#8b7355', 0, 1.5, 6);
+    scene.add(door);
+
+    // --- PERSONAJE 3D ---
+    const characters = [];
+
+    function createHumanCharacter(name, shirtColor, isNPC) {
+      const group = new THREE.Group();
       
-      let camera = { x: 0, y: 0, zoom: 1 };
-      let isPanning = false;
-      let panStart = { x: 0, y: 0 };
-      let hasMoved = false;
+      const skinMat = new THREE.MeshStandardMaterial({ color: '#ffdfc4' });
+      const pantsMat = new THREE.MeshStandardMaterial({ color: isNPC ? '#4a5568' : '#5c6bc0' });
+      const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColor });
+      const hairMat = new THREE.MeshStandardMaterial({ color: '#6d4c41' });
 
-      let sim = {
-        x: 300, y: 250, targetX: 300, targetY: 250,
-        speed: 3, color: '#e8a87c', name: 'Sim',
-        state: 'idle', actionTimer: 0, bobOffset: 0,
-        facingRight: true, walkTime: 0
-      };
+      // Picioare
+      const legGeo = new THREE.BoxGeometry(0.4, 0.8, 0.4);
+      const legL = new THREE.Mesh(legGeo, pantsMat);
+      legL.position.set(-0.25, 0.4, 0);
+      legL.castShadow = true;
+      const legR = new THREE.Mesh(legGeo, pantsMat);
+      legR.position.set(0.25, 0.4, 0);
+      legR.castShadow = true;
 
-      let npc = {
-        x: 200, y: 200, targetX: 200, targetY: 200,
-        speed: 1.5, color: '#b19cd9', name: 'Pufi',
-        state: 'idle', actionTimer: 0, bobOffset: 0,
-        speechBubble: null, speechTimer: 0, facingRight: true, walkTime: 0
-      };
+      // Corp
+      const torsoGeo = new THREE.BoxGeometry(0.8, 1, 0.5);
+      const torso = new THREE.Mesh(torsoGeo, shirtMat);
+      torso.position.set(0, 1.3, 0);
+      torso.castShadow = true;
 
-      let needs = { foame: 100, energie: 100, igiena: 100, distractie: 100, social: 100 };
+      // Mâini
+      const armGeo = new THREE.BoxGeometry(0.3, 0.8, 0.3);
+      const armL = new THREE.Mesh(armGeo, skinMat);
+      armL.position.set(-0.6, 1.3, 0);
+      armL.castShadow = true;
+      const armR = new THREE.Mesh(armGeo, skinMat);
+      armR.position.set(0.6, 1.3, 0);
+      armR.castShadow = true;
 
-      let objects = [
-        { id: 'fridge', name: 'Fridge', x: 70, y: 70, w: 40, h: 60, color: '#d1d5db', need: 'foame', emoji: '🍔' },
-        { id: 'shower', name: 'Shower', x: 70, y: 270, w: 40, h: 40, color: '#bfdbfe', need: 'igiena', emoji: '🚿' },
-        { id: 'tv', name: 'TV', x: 420, y: 270, w: 60, h: 40, color: '#4b5563', need: 'distractie', emoji: '🎮' },
-        { id: 'bed', name: 'Bed', x: 420, y: 70, w: 80, h: 50, color: '#fbcfe8', need: 'energie', emoji: '⚡' }
-      ];
+      // Cap
+      const headGeo = new THREE.SphereGeometry(0.4, 16, 16);
+      const head = new THREE.Mesh(headGeo, skinMat);
+      head.position.set(0, 2.1, 0);
+      head.castShadow = true;
 
-      const shopCatalog = [
-        { id: 'plant', name: 'Plant', w: 30, h: 40, color: '#a8c3a6', emoji: '🪴', need: 'igiena' },
-        { id: 'lamp', name: 'Lamp', w: 30, h: 50, color: '#f4d06f', emoji: '💡', need: 'distractie' },
-        { id: 'sofa', name: 'Sofa', w: 80, h: 40, color: '#d9a0b3', emoji: '🛋️', need: 'energie' },
-        { id: 'picture', name: 'Picture', w: 50, h: 40, color: '#e8a87c', emoji: '🖼️', need: 'distractie' }
-      ];
+      // Păr (calota de sus)
+      const hairGeo = new THREE.SphereGeometry(0.42, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+      const hair = new THREE.Mesh(hairGeo, hairMat);
+      hair.position.set(0, 2.15, 0);
+      hair.castShadow = true;
 
-      const dialogues = [
-        "How are you today?", "I love your home!", "Don't forget to eat!",
-        "Let's watch a movie.", "It's a beautiful day outside.", "I'm glad you're here!"
-      ];
+      group.add(legL, legR, torso, armL, armR, head, hair);
+      group.userData = { name, isNPC, legL, legR, armL, armR };
+      return group;
+    }
 
-      let gameStarted = false;
+    // Creăm Sim-ul și NPC-ul
+    const sim = createHumanCharacter('Sim', '#e8a87c', false);
+    sim.position.set(0, 0, 2);
+    scene.add(sim);
+    characters.push(sim);
 
-      // --- CREATOR ---
-      document.getElementById('color-picker').addEventListener('click', (e) => {
-        if (e.target.classList.contains('color-option')) {
-          document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
-          e.target.classList.add('selected');
-          sim.color = e.target.dataset.color;
-        }
-      });
-      document.querySelector('.color-option').classList.add('selected');
+    const npc = createHumanCharacter('Pufi', '#b19cd9', true);
+    npc.position.set(-3, 0, 0);
+    scene.add(npc);
+    characters.push(npc);
 
-      document.getElementById('start-btn').addEventListener('click', () => {
-        const nameInput = document.getElementById('sim-name').value.trim();
-        if (nameInput) sim.name = nameInput;
-        
-        document.getElementById('ui-sim-name').innerText = sim.name;
-        document.getElementById('creator-screen').style.display = 'none';
-        gameStarted = true;
-        
-        initAudio();
-        playPop();
-        saveGame();
-      });
+    // --- STARE JOC ---
+    let timeOfDay = 12;
+    let needs = { foame: 100, energie: 100, igiena: 100, distractie: 100, social: 100 };
+    let gameStarted = false;
+    let targetPos = new THREE.Vector3(0, 0, 2);
+    let simMoving = false;
 
-      // --- SAVE / LOAD / RESET ---
-      function saveGame() {
-        localStorage.setItem('cozySimData', JSON.stringify({
-          name: sim.name, color: sim.color, needs: needs, timeOfDay: timeOfDay, objects: objects
-        }));
+    // Interacțiune cu obiectele (zone invizibile)
+    const interactables = [
+      { mesh: bedBase, type: 'energie', pos: new THREE.Vector3(4.5, 0, -4) },
+      { mesh: fridge, type: 'foame', pos: new THREE.Vector3(-5.5, 0, -4) },
+      { mesh: tvStand, type: 'distractie', pos: new THREE.Vector3(4.5, 0, 4) },
+      { mesh: showerBase, type: 'igiena', pos: new THREE.Vector3(-5.5, 0, 4) },
+      { mesh: npc, type: 'social', pos: npc.position }
+    ];
+
+    // --- CREATOR ---
+    document.getElementById('color-picker').addEventListener('click', (e) => {
+      if (e.target.classList.contains('color-option')) {
+        document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+        e.target.classList.add('selected');
+        sim.userData.color = e.target.dataset.color;
       }
+    });
+    document.querySelector('.color-option').classList.add('selected');
 
-      const savedData = localStorage.getItem('cozySimData');
-      if (savedData) {
-        const data = JSON.parse(savedData);
-        document.getElementById('sim-name').value = data.name;
-        sim.name = data.name;
-        sim.color = data.color;
-        needs = data.needs;
-        if (data.timeOfDay) timeOfDay = data.timeOfDay;
-        if (data.objects) objects = data.objects;
-        
-        document.querySelectorAll('.color-option').forEach(el => {
-          if (el.dataset.color === data.color) el.classList.add('selected');
-        });
+    document.getElementById('start-btn').addEventListener('click', () => {
+      const nameInput = document.getElementById('sim-name').value.trim();
+      if (nameInput) {
+        sim.userData.name = nameInput;
+        document.getElementById('ui-sim-name').innerText = nameInput;
       }
-
-      document.getElementById('reset-btn').addEventListener('click', () => {
-        if (confirm("Are you sure you want to delete all progress?")) {
-          localStorage.removeItem('cozySimData');
-          location.reload();
-        }
-      });
-
-      // --- SHOP ---
-      const shopModal = document.getElementById('shop-modal');
-      const shopGrid = document.getElementById('shop-grid');
       
-      document.getElementById('open-shop-btn').addEventListener('click', () => {
-        playPop();
-        shopGrid.innerHTML = '';
-        shopCatalog.forEach(item => {
-          const div = document.createElement('div');
-          div.className = 'shop-item';
-          div.innerHTML = `<span class="shop-item-emoji">${item.emoji}</span><span class="shop-item-name">${item.name}</span>`;
-          div.addEventListener('click', () => {
-            const newObj = { ...item, x: 150 + Math.random()*250, y: 150 + Math.random()*150 };
-            objects.push(newObj);
-            saveGame();
-            shopModal.style.display = 'none';
-            document.getElementById('status-msg').innerText = "Added " + item.name + "!";
-            playPop();
-          });
-          shopGrid.appendChild(div);
-        });
-        shopModal.style.display = 'flex';
-      });
+      // Actualizăm culoarea tricoului în 3D
+      const shirtMat = sim.children[2].material;
+      shirtMat.color.set(sim.userData.color || '#e8a87c');
 
-      document.getElementById('close-shop-btn').addEventListener('click', () => {
-        shopModal.style.display = 'none';
-      });
+      document.getElementById('creator-screen').style.display = 'none';
+      gameStarted = true;
+      initAudio();
+      playPop();
+    });
 
-      // --- EDIT MODE ---
-      const editBtn = document.getElementById('edit-mode-btn');
-      editBtn.addEventListener('click', () => {
-        playPop();
-        isEditMode = !isEditMode;
-        if (isEditMode) {
-          editBtn.innerText = "✅ Save & Exit";
-          editBtn.classList.add('active');
-          document.getElementById('status-msg').innerText = "Drag objects with the mouse!";
-        } else {
-          editBtn.innerText = "✏️ Edit Room";
-          editBtn.classList.remove('active');
-          document.getElementById('status-msg').innerText = "Game mode active.";
-          saveGame();
-        }
-      });
+    // --- RAYCASTER (CLICK PE OBIECTE) ---
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
 
-      // --- UPDATE LOGIC ---
-      function update() {
-        if (!gameStarted) return;
+    renderer.domElement.addEventListener('click', (e) => {
+      if (!gameStarted) return;
 
-        gameTime++;
-        if (gameTime >= 60) {
-            timeOfDay += 0.1;
-            if (timeOfDay >= 24) timeOfDay = 0;
-            gameTime = 0;
-        }
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
-        needs.foame = Math.max(0, needs.foame - 0.015);
-        needs.energie = Math.max(0, needs.energie - 0.01);
-        needs.igiena = Math.max(0, needs.igiena - 0.008);
-        needs.distractie = Math.max(0, needs.distractie - 0.02);
-        needs.social = Math.max(0, needs.social - 0.012);
+      raycaster.setFromCamera(mouse, camera);
+      
+      // Verificăm dacă am dat click pe podea sau iarbă
+      const intersectsFloor = raycaster.intersectObjects([floor, grass]);
+      // Verificăm dacă am dat click pe obiecte
+      const intersectsObjects = raycaster.intersectObjects(interactables.map(i => i.mesh));
 
-        // Animație mers
-        if (sim.state === 'walking') sim.walkTime += 0.2;
-        else sim.walkTime = 0;
-
-        if (npc.state === 'walking') npc.walkTime += 0.2;
-        else npc.walkTime = 0;
-
-        if (!isEditMode) {
-            if (sim.state === 'walking') {
-            const dx = sim.targetX - sim.x;
-            const dy = sim.targetY - sim.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist > sim.speed) {
-                sim.x += (dx / dist) * sim.speed;
-                sim.y += (dy / dist) * sim.speed;
-                if (dx > 0.1) sim.facingRight = true;
-                else if (dx < -0.1) sim.facingRight = false;
-            } else {
-                sim.x = sim.targetX;
-                sim.y = sim.targetY;
-                sim.state = 'using';
-                sim.actionTimer = 120;
-            }
-            } else if (sim.state === 'using') {
-            sim.actionTimer--;
-            if (sim.actionTimer <= 0) sim.state = 'idle';
-            }
-        }
-
-        if (npc.speechTimer > 0) {
-            npc.speechTimer--;
-            if (npc.speechTimer <= 0) npc.speechBubble = null;
-        }
-
-        if (currentScene === 'inside' && npc.state === 'idle') {
-          if (Math.random() < 0.005) {
-            npc.targetX = 100 + Math.random() * 350;
-            npc.targetY = 100 + Math.random() * 200;
-            npc.state = 'walking';
-          }
-        } else if (npc.state === 'walking') {
-          const dx = npc.targetX - npc.x;
-          const dy = npc.targetY - npc.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist > npc.speed) {
-            npc.x += (dx / dist) * npc.speed;
-            npc.y += (dy / dist) * npc.speed;
-            if (dx > 0.1) npc.facingRight = true;
-            else if (dx < -0.1) npc.facingRight = false;
+      if (intersectsObjects.length > 0) {
+        // Am dat click pe un obiect
+        const hit = intersectsObjects[0].object;
+        const objData = interactables.find(i => i.mesh === hit);
+        
+        if (objData) {
+          targetPos.copy(objData.pos);
+          targetPos.y = 0;
+          simMoving = true;
+          
+          if (objData.type === 'social') {
+            needs.social = Math.min(100, needs.social + 50);
+            document.getElementById('status-msg').innerText = "Talking to Pufi! 💬";
           } else {
-            npc.state = 'idle';
+            needs[objData.type] = Math.min(100, needs[objData.type] + 40);
+            document.getElementById('status-msg').innerText = "Using " + objData.type;
           }
         }
+      } else if (intersectsFloor.length > 0) {
+        // Am dat click pe podea
+        targetPos.copy(intersectsFloor[0].point);
+        targetPos.y = 0;
+        simMoving = true;
+        document.getElementById('status-msg').innerText = "Walking...";
+      }
+    });
 
+    // --- CAMERA CONTROL (ORBIT) ---
+    let isPanning = false;
+    let previousMousePosition = { x: 0, y: 0 };
+    let cameraAngle = Math.PI / 4; // Unghiul inițial
+    let cameraHeight = 12;
+    let cameraDistance = 15;
+
+    renderer.domElement.addEventListener('mousedown', (e) => {
+      isPanning = true;
+      previousMousePosition = { x: e.offsetX, y: e.offsetY };
+    });
+
+    renderer.domElement.addEventListener('mousemove', (e) => {
+      if (isPanning) {
+        const deltaX = e.offsetX - previousMousePosition.x;
+        cameraAngle -= deltaX * 0.01;
+        previousMousePosition = { x: e.offsetX, y: e.offsetY };
+      }
+    });
+
+    renderer.domElement.addEventListener('mouseup', () => isPanning = false);
+    renderer.domElement.addEventListener('mouseleave', () => isPanning = false);
+
+    renderer.domElement.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      cameraDistance += e.deltaY * 0.02;
+      cameraDistance = Math.max(8, Math.min(25, cameraDistance));
+    });
+
+    // --- UPDATE LOOP ---
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const time = Date.now() / 1000;
+
+      // Actualizare cameră (orbit)
+      if (!isPanning) {
+        camera.position.x = Math.sin(cameraAngle) * cameraDistance;
+        camera.position.z = Math.cos(cameraAngle) * cameraDistance;
+        camera.position.y = cameraHeight;
+        camera.lookAt(0, 0, 0);
+      }
+
+      if (gameStarted) {
+        // Nevoi
+        needs.foame = Math.max(0, needs.foame - 0.01);
+        needs.energie = Math.max(0, needs.energie - 0.008);
+        needs.igiena = Math.max(0, needs.igiena - 0.005);
+        needs.distractie = Math.max(0, needs.distractie - 0.015);
+        needs.social = Math.max(0, needs.social - 0.01);
+
+        // UI Update
         const updateBar = (id, val) => {
           document.getElementById('val-' + id).innerText = Math.round(val) + '%';
           document.getElementById('bar-' + id).style.width = val + '%';
@@ -493,477 +567,77 @@
         updateBar('igiena', needs.igiena);
         updateBar('distractie', needs.distractie);
         updateBar('social', needs.social);
-      }
 
-      // --- DRAWING HELPERS ---
-      function drawCloud(x, y, scale) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.beginPath();
-        ctx.arc(x, y, 15 * scale, 0, Math.PI*2);
-        ctx.arc(x + 15*scale, y - 5*scale, 20 * scale, 0, Math.PI*2);
-        ctx.arc(x + 35*scale, y, 15 * scale, 0, Math.PI*2);
-        ctx.fill();
-      }
-
-      function drawTree(x, y) {
-        ctx.fillStyle = '#8b5a2b';
-        ctx.fillRect(x - 8, y - 40, 16, 40);
-        ctx.fillStyle = '#6b8e23';
-        ctx.beginPath();
-        ctx.arc(x, y - 50, 30, 0, Math.PI*2);
-        ctx.arc(x - 20, y - 35, 25, 0, Math.PI*2);
-        ctx.arc(x + 20, y - 35, 25, 0, Math.PI*2);
-        ctx.fill();
-      }
-
-      function drawHouse(x, y, scale, color) {
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y, 100*scale, 80*scale);
-        ctx.fillStyle = '#a05a5a';
-        ctx.beginPath();
-        ctx.moveTo(x - 10*scale, y);
-        ctx.lineTo(x + 50*scale, y - 40*scale);
-        ctx.lineTo(x + 110*scale, y);
-        ctx.fill();
-        ctx.fillStyle = '#8b7355';
-        ctx.fillRect(x + 40*scale, y + 40*scale, 20*scale, 40*scale);
-        ctx.fillStyle = '#ffeb3b';
-        ctx.fillRect(x + 15*scale, y + 20*scale, 15*scale, 15*scale);
-        ctx.fillRect(x + 70*scale, y + 20*scale, 15*scale, 15*scale);
-      }
-
-      // --- NOUA FUNCȚIE DE DESENARE PERSONAJ UMAN ---
-      function drawHumanCharacter(char, isNPC) {
-        let yOffset = Math.sin(Date.now() / 400) * 1.5; // Respirație fină
-        let walkSwing = Math.sin(char.walkTime) * 5; // Legănare mâini/picioare
-
-        ctx.save();
-        ctx.translate(char.x, char.y + yOffset);
-
-        // Umbră
-        ctx.fillStyle = 'rgba(0,0,0,0.15)';
-        ctx.beginPath(); ctx.ellipse(0, 15, 10, 4, 0, 0, Math.PI * 2); ctx.fill();
-
-        if (!char.facingRight) ctx.scale(-1, 1);
-
-        // Culori
-        let shirtColor = char.color;
-        if (!isNPC && (needs.foame < 20 || needs.energie < 20)) shirtColor = '#e57373'; // Roșu când e stresat
-        
-        const skinColor = '#ffdfc4'; // Culoare piele
-        const pantsColor = isNPC ? '#4a5568' : '#5c6bc0'; // Albastru pentru Sim, gri pentru NPC
-        const hairColor = isNPC ? '#4a3728' : '#6d4c41'; // Păr șaten
-
-        // --- PICIOARE ---
-        ctx.fillStyle = pantsColor;
-        // Piciorul stâng (se mișcă înainte/înapoi)
-        ctx.save();
-        ctx.translate(-5, 5);
-        ctx.rotate(walkSwing * 0.1);
-        ctx.beginPath(); ctx.roundRect(-4, 0, 8, 15, 3); ctx.fill();
-        ctx.restore();
-
-        // Piciorul drept
-        ctx.save();
-        ctx.translate(5, 5);
-        ctx.rotate(-walkSwing * 0.1);
-        ctx.beginPath(); ctx.roundRect(-4, 0, 8, 15, 3); ctx.fill();
-        ctx.restore();
-
-        // --- CORP (Tricou) ---
-        ctx.fillStyle = shirtColor;
-        ctx.beginPath(); ctx.roundRect(-10, -15, 20, 22, 6); ctx.fill();
-
-        // --- MÂINI ---
-        ctx.fillStyle = skinColor;
-        // Mâna stângă
-        ctx.save();
-        ctx.translate(-12, -10);
-        ctx.rotate(-walkSwing * 0.15);
-        ctx.beginPath(); ctx.roundRect(-3, 0, 6, 18, 3); ctx.fill();
-        ctx.restore();
-
-        // Mâna dreaptă
-        ctx.save();
-        ctx.translate(12, -10);
-        ctx.rotate(walkSwing * 0.15);
-        ctx.beginPath(); ctx.roundRect(-3, 0, 6, 18, 3); ctx.fill();
-        ctx.restore();
-
-        // --- CAP ---
-        ctx.fillStyle = skinColor;
-        ctx.beginPath(); ctx.arc(0, -25, 14, 0, Math.PI * 2); ctx.fill();
-
-        // --- PĂR ---
-        ctx.fillStyle = hairColor;
-        ctx.beginPath();
-        // Un păr drăguț, rotunjit
-        ctx.arc(0, -28, 14, Math.PI, 0);
-        ctx.fill();
-        // Urechi
-        ctx.beginPath(); ctx.arc(-13, -25, 3, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(13, -25, 3, 0, Math.PI*2); ctx.fill();
-
-        // --- FAȚĂ ---
-        // Ochi
-        ctx.fillStyle = '#2c1e16';
-        ctx.beginPath(); ctx.arc(3, -26, 2, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(9, -26, 2, 0, Math.PI * 2); ctx.fill();
-        
-        // Obrajori roz
-        ctx.fillStyle = 'rgba(255, 150, 150, 0.6)';
-        ctx.beginPath(); ctx.arc(1, -21, 3, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(11, -21, 3, 0, Math.PI*2); ctx.fill();
-
-        // Zâmbet
-        ctx.strokeStyle = '#2c1e16';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(6, -21, 2, 0, Math.PI);
-        ctx.stroke();
-
-        // Codăciță de păr (doar la NPC pentru a-l diferenția)
-        if (isNPC) {
-            ctx.fillStyle = hairColor;
-            ctx.beginPath(); ctx.arc(-12, -30, 5, 0, Math.PI*2); ctx.fill();
-        }
-
-        ctx.restore();
-
-        // Nume
-        ctx.font = '12px system-ui';
-        ctx.fillStyle = '#8b7355';
-        ctx.textAlign = 'center';
-        ctx.fillText(char.name, char.x, char.y - 45 + yOffset);
-      }
-
-      // --- DRAWING SCENE ---
-      function draw() {
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.fillStyle = '#faf0e6';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        if (!gameStarted) return;
-
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.scale(camera.zoom, camera.zoom);
-        ctx.translate(-canvas.width / 2 + camera.x, -canvas.height / 2 + camera.y);
-
-        let skyColor = '#87CEEB';
-        if (timeOfDay < 6 || timeOfDay > 20) skyColor = '#1a1a3a';
-        else if (timeOfDay < 8) skyColor = '#ffb347';
-        else if (timeOfDay > 18) skyColor = '#ff7f50';
-
-        if (currentScene === 'outside') {
-            ctx.fillStyle = skyColor;
-            ctx.fillRect(-500, -500, 1600, 1500);
-
-            drawCloud(100 + Math.sin(Date.now()/5000)*20, 100, 1.5);
-            drawCloud(450 + Math.sin(Date.now()/6000)*30, 150, 1);
-            drawCloud(-100 + Math.sin(Date.now()/7000)*15, 80, 2);
-
-            ctx.fillStyle = '#8fbc8f';
-            ctx.fillRect(-500, 200, 1600, 1000);
-
-            ctx.fillStyle = '#a9a9a9';
-            ctx.fillRect(-500, 350, 1600, 120);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 4;
-            ctx.setLineDash([20, 20]);
-            ctx.beginPath(); ctx.moveTo(-500, 410); ctx.lineTo(1100, 410); ctx.stroke();
-            ctx.setLineDash([]); 
-
-            drawHouse(-200, 250, 1, '#ffd1b3');
-            drawHouse(400, 280, 0.8, '#b3e0ff');
-            drawHouse(700, 240, 1.2, '#d9b3ff');
-
-            ctx.fillStyle = '#f4f4f4';
-            ctx.fillRect(100, 150, 400, 200);
-            drawHouse(100, 150, 1.2, '#fdfbf7'); 
+        // Mișcare Sim
+        if (simMoving) {
+          const dir = new THREE.Vector3().subVectors(targetPos, sim.position);
+          dir.y = 0;
+          const dist = dir.length();
+          
+          if (dist > 0.2) {
+            dir.normalize();
+            sim.position.addScaledVector(dir, 3 * delta);
+            sim.lookAt(targetPos);
             
-            ctx.fillStyle = '#fff';
-            for(let i=80; i<550; i+=20) {
-                ctx.fillRect(i, 300, 10, 50);
-            }
-            ctx.fillRect(80, 320, 470, 5);
-            ctx.fillRect(80, 340, 470, 5);
-
-            ctx.fillStyle = '#8b7355';
-            ctx.fillRect(270, 300, 60, 80); 
-            ctx.fillStyle = '#f4d06f';
-            ctx.beginPath(); ctx.arc(320, 340, 4, 0, Math.PI*2); ctx.fill();
-            ctx.font = '12px system-ui';
-            ctx.fillStyle = '#fff';
-            ctx.textAlign = 'center';
-            ctx.fillText("ENTER", 300, 325);
-
-            drawHumanCharacter(sim, false);
-
-        } else {
-            ctx.fillStyle = '#e8d5c4';
-            ctx.fillRect(50, 50, 500, 300);
-            
-            ctx.fillStyle = '#d9a0b3';
-            ctx.beginPath();
-            ctx.roundRect(150, 200, 300, 100, 10);
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            ctx.fillStyle = skyColor;
-            ctx.fillRect(200, 50, 100, 20);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 4;
-            ctx.strokeRect(200, 50, 100, 20);
-            ctx.beginPath(); ctx.moveTo(250, 50); ctx.lineTo(250, 70); ctx.stroke();
-
-            ctx.fillStyle = '#fdfbf7';
-            ctx.shadowColor = 'rgba(0,0,0,0.1)';
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetY = 5;
-            ctx.fillRect(50, 50, 500, 20);
-            ctx.fillRect(50, 50, 20, 300);
-            ctx.fillRect(530, 50, 20, 300);
-            ctx.fillRect(50, 330, 200, 20);
-            ctx.fillRect(350, 330, 200, 20);
-            ctx.fillRect(300, 50, 20, 120);
-            ctx.shadowColor = 'transparent';
-
-            objects.forEach(obj => {
-              ctx.fillStyle = obj.color;
-              ctx.beginPath();
-              ctx.shadowColor = 'rgba(0,0,0,0.1)';
-              ctx.shadowBlur = 4;
-              ctx.shadowOffsetY = 2;
-              ctx.roundRect(obj.x, obj.y, obj.w, obj.h, 8);
-              ctx.fill();
-              ctx.shadowColor = 'transparent';
-
-              if (obj.id === 'bed') {
-                  ctx.fillStyle = '#fff';
-                  ctx.fillRect(obj.x + 5, obj.y + 5, 20, obj.h - 10);
-                  ctx.fillStyle = '#e8d5c4';
-                  ctx.fillRect(obj.x + 25, obj.y + 5, obj.w - 30, obj.h - 10);
-              }
-              if (obj.id === 'tv') {
-                  ctx.fillStyle = '#1a1a1a';
-                  ctx.fillRect(obj.x + 5, obj.y + 5, obj.w - 10, obj.h - 10);
-                  ctx.fillStyle = '#333';
-                  ctx.fillRect(obj.x + obj.w/2 - 2, obj.y + obj.h - 5, 4, 10);
-              }
-              if (obj.id === 'fridge') {
-                  ctx.fillStyle = '#9ca3af';
-                  ctx.fillRect(obj.x + obj.w - 8, obj.y + 10, 4, 20);
-              }
-
-              ctx.font = '24px Arial';
-              ctx.textAlign = 'center';
-              ctx.fillText(obj.emoji, obj.x + obj.w / 2, obj.y - 10);
-              ctx.font = '10px system-ui';
-              ctx.fillStyle = '#6b5b4d';
-              ctx.fillText(obj.name, obj.x + obj.w / 2, obj.y + obj.h + 15);
-            });
-
-            ctx.fillStyle = '#8b7355';
-            ctx.fillRect(250, 330, 50, 20);
-            ctx.fillStyle = '#f4d06f';
-            ctx.beginPath(); ctx.arc(290, 340, 4, 0, Math.PI*2); ctx.fill();
-            ctx.font = '10px system-ui';
-            ctx.fillStyle = '#fff';
-            ctx.fillText("EXIT", 275, 345);
-
-            drawHumanCharacter(npc, true);
-            drawHumanCharacter(sim, false);
-
-            if (npc.speechBubble) {
-                ctx.fillStyle = 'white'; ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 2;
-                ctx.font = '12px system-ui';
-                const textWidth = ctx.measureText(npc.speechBubble).width;
-                const boxW = textWidth + 20; const boxH = 30;
-                const boxX = npc.x - boxW / 2; const boxY = npc.y - 90 + npc.bobOffset;
-
-                ctx.beginPath(); ctx.roundRect(boxX, boxY, boxW, boxH, 8); ctx.fill(); ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(npc.x - 5, boxY + boxH); ctx.lineTo(npc.x + 5, boxY + boxH);
-                ctx.lineTo(npc.x, boxY + boxH + 8); ctx.fill(); ctx.stroke();
-
-                ctx.fillStyle = '#4a3728'; ctx.textAlign = 'center';
-                ctx.fillText(npc.speechBubble, npc.x, boxY + 19);
-            }
-
-            let lowestNeed = 'foame'; let lowestVal = needs.foame;
-            if (needs.energie < lowestVal) { lowestVal = needs.energie; lowestNeed = 'energie'; }
-            if (needs.igiena < lowestVal) { lowestVal = needs.igiena; lowestNeed = 'igiena'; }
-            if (needs.distractie < lowestVal) { lowestVal = needs.distractie; lowestNeed = 'distractie'; }
-            if (needs.social < lowestVal) { lowestVal = needs.social; lowestNeed = 'social'; }
-
-            if (lowestVal < 30 && sim.state === 'idle') {
-              const needObj = objects.find(o => o.need === lowestNeed) || { emoji: '💬' };
-              ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-              ctx.beginPath(); ctx.arc(sim.x + 20, sim.y - 60 + sim.bobOffset, 15, 0, Math.PI * 2); ctx.fill();
-              ctx.font = '16px Arial'; ctx.textAlign = 'center';
-              ctx.fillText(needObj.emoji, sim.x + 20, sim.y - 55 + sim.bobOffset);
-            }
-        }
-
-        ctx.setTransform(1, 0, 0, 1, 0, 0); 
-        let dayNightAlpha = 0;
-        if (timeOfDay < 6 || timeOfDay > 20) dayNightAlpha = 0.6;
-        else if (timeOfDay < 8) dayNightAlpha = 0.6 - ((timeOfDay - 6) / 2) * 0.6;
-        else if (timeOfDay > 18) dayNightAlpha = ((timeOfDay - 18) / 2) * 0.6;
-
-        if (dayNightAlpha > 0) {
-            ctx.fillStyle = `rgba(30, 40, 70, ${dayNightAlpha})`;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            if(currentScene === 'inside') {
-                const gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 50, canvas.width/2, canvas.height/2, 400);
-                gradient.addColorStop(0, `rgba(255, 200, 100, ${dayNightAlpha * 0.5})`);
-                gradient.addColorStop(1, 'transparent');
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
-        }
-
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.beginPath(); ctx.roundRect(535, 15, 50, 25, 8); ctx.fill();
-        ctx.font = '12px system-ui'; ctx.fillStyle = '#6b5b4d'; ctx.textAlign = 'center';
-        const hourStr = Math.floor(timeOfDay).toString().padStart(2, '0');
-        const minStr = Math.floor((timeOfDay % 1) * 60).toString().padStart(2, '0');
-        ctx.fillText(`⏰ ${hourStr}:${minStr}`, 560, 32);
-      }
-
-      // --- INTERACTION ---
-      function getMouseWorldPos(e) {
-        const rect = canvas.getBoundingClientRect();
-        const screenX = (e.clientX - rect.left) * (canvas.width / rect.width);
-        const screenY = (e.clientY - rect.top) * (canvas.height / rect.height);
-        const worldX = (screenX - canvas.width / 2) / camera.zoom + canvas.width / 2 - camera.x;
-        const worldY = (screenY - canvas.height / 2) / camera.zoom + canvas.height / 2 - camera.y;
-        return { x: worldX, y: worldY };
-      }
-
-      canvas.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const zoomAmount = e.deltaY > 0 ? -0.1 : 0.1;
-        camera.zoom = Math.max(0.5, Math.min(3, camera.zoom + zoomAmount));
-      });
-
-      canvas.addEventListener('mousedown', (e) => {
-        if (!gameStarted) return;
-        hasMoved = false;
-        const rect = canvas.getBoundingClientRect();
-        const screenX = (e.clientX - rect.left) * (canvas.width / rect.width);
-        const screenY = (e.clientY - rect.top) * (canvas.height / rect.height);
-
-        if (isEditMode && currentScene === 'inside') {
-          const worldPos = getMouseWorldPos(e);
-          const obj = getObjectAt(worldPos.x, worldPos.y);
-          if (obj) {
-            draggedObject = obj;
-            dragOffsetX = worldPos.x - obj.x;
-            dragOffsetY = worldPos.y - obj.y;
-            return;
+            // Animație mers (legănare)
+            const walkSwing = Math.sin(time * 10) * 0.5;
+            sim.userData.legL.rotation.x = walkSwing;
+            sim.userData.legR.rotation.x = -walkSwing;
+            sim.userData.armL.rotation.x = -walkSwing;
+            sim.userData.armR.rotation.x = walkSwing;
+          } else {
+            simMoving = false;
+            // Reset poziție
+            sim.userData.legL.rotation.x = 0;
+            sim.userData.legR.rotation.x = 0;
+            sim.userData.armL.rotation.x = 0;
+            sim.userData.armR.rotation.x = 0;
           }
         }
-        isPanning = true;
-        panStart = { x: screenX - camera.x * camera.zoom, y: screenY - camera.y * camera.zoom };
-      });
 
-      canvas.addEventListener('mousemove', (e) => {
-        if (!gameStarted) return;
-        hasMoved = true;
-        const rect = canvas.getBoundingClientRect();
-        const screenX = (e.clientX - rect.left) * (canvas.width / rect.width);
-        const screenY = (e.clientY - rect.top) * (canvas.height / rect.height);
-
-        if (isEditMode && draggedObject) {
-          const worldPos = getMouseWorldPos(e);
-          draggedObject.x = worldPos.x - dragOffsetX;
-          draggedObject.y = worldPos.y - dragOffsetY;
-        } else if (isPanning) {
-          camera.x = (screenX - panStart.x) / camera.zoom;
-          camera.y = (screenY - panStart.y) / camera.zoom;
+        // NPC Wander (se plimbă random)
+        if (Math.random() < 0.005) {
+          npc.userData.target = new THREE.Vector3(
+            -6 + Math.random() * 12,
+            0,
+            -5 + Math.random() * 10
+          );
         }
-      });
-
-      canvas.addEventListener('mouseup', () => {
-        isPanning = false;
-        if (draggedObject) draggedObject = null;
-      });
-
-      canvas.addEventListener('click', (e) => {
-        if (!gameStarted || isEditMode || hasMoved) return; 
-        const worldPos = getMouseWorldPos(e);
-        const clickX = worldPos.x;
-        const clickY = worldPos.y;
-
-        if (currentScene === 'outside') {
-            if (clickX >= 260 && clickX <= 340 && clickY >= 280 && clickY <= 380) {
-                currentScene = 'inside';
-                sim.x = 275; sim.y = 300;
-                sim.targetX = 275; sim.targetY = 300;
-                document.getElementById('status-msg').innerText = "Welcome home!";
-                playPop();
-            }
-            return;
-        }
-
-        if (clickX >= 240 && clickX <= 310 && clickY >= 330 && clickY <= 350) {
-            currentScene = 'outside';
-            sim.x = 300; sim.y = 400;
-            sim.targetX = 300; sim.targetY = 400;
-            document.getElementById('status-msg').innerText = "You are outside!";
-            playPop();
-            return;
-        }
-
-        if (clickX < 70 || clickX > 530 || clickY < 70 || clickY > 330) return;
-
-        const dxNpc = clickX - npc.x;
-        const dyNpc = clickY - npc.y;
-        if (Math.sqrt(dxNpc*dxNpc + dyNpc*dyNpc) < 30) {
-          sim.targetX = npc.x - 30;
-          sim.targetY = npc.y;
-          sim.state = 'walking';
-          needs.social = Math.min(100, needs.social + 50);
-          document.getElementById('status-msg').innerText = "Talking to " + npc.name + "! 💬";
-          npc.speechBubble = dialogues[Math.floor(Math.random() * dialogues.length)];
-          npc.speechTimer = 180;
-          return;
-        }
-
-        const clickedObject = getObjectAt(clickX, clickY);
-        if (clickedObject) {
-          sim.targetX = clickedObject.x + clickedObject.w / 2;
-          sim.targetY = clickedObject.y + clickedObject.h + 25;
-          sim.state = 'walking';
-          if (clickedObject.need) {
-              needs[clickedObject.need] = Math.min(100, needs[clickedObject.need] + 40);
+        if (npc.userData.target) {
+          const dir = new THREE.Vector3().subVectors(npc.userData.target, npc.position);
+          dir.y = 0;
+          if (dir.length() > 0.2) {
+            dir.normalize();
+            npc.position.addScaledVector(dir, 1.5 * delta);
+            npc.lookAt(npc.userData.target);
+            // Animație mers NPC
+            const swing = Math.sin(time * 10) * 0.5;
+            npc.userData.legL.rotation.x = swing;
+            npc.userData.legR.rotation.x = -swing;
+            npc.userData.armL.rotation.x = -swing;
+            npc.userData.armR.rotation.x = swing;
+          } else {
+            npc.userData.legL.rotation.x = 0;
+            npc.userData.legR.rotation.x = 0;
+            npc.userData.armL.rotation.x = 0;
+            npc.userData.armR.rotation.x = 0;
           }
-          document.getElementById('status-msg').innerText = "Using " + clickedObject.name;
-        } else {
-          sim.targetX = clickX;
-          sim.targetY = clickY;
-          sim.state = 'walking';
         }
-      });
-
-      function getObjectAt(x, y) {
-        for (let obj of objects) {
-            if (x >= obj.x && x <= obj.x + obj.w && y >= obj.y && y <= obj.y + obj.h) return obj;
-        }
-        return null;
       }
 
-      function loop() {
-        update();
-        draw();
-        requestAnimationFrame(loop);
-      }
+      renderer.render(scene, camera);
+    }
 
-      loop();
-    };
+    animate();
+
+    // Reset
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      if (confirm("Are you sure you want to delete all progress?")) {
+        localStorage.removeItem('cozySimData');
+        location.reload();
+      }
+    });
+
   </script>
 </body>
 </html>
