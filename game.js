@@ -2,6 +2,25 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { buildWorld, toggleFloor } from './world3d.js';
 
+// --- UI LOGIC ---
+document.getElementById('play-btn').addEventListener('click', () => {
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('creator-screen').style.display = 'flex';
+});
+
+document.getElementById('settings-btn').addEventListener('click', () => {
+    document.getElementById('settings-modal').style.display = 'flex';
+});
+document.getElementById('close-settings').addEventListener('click', () => {
+    document.getElementById('settings-modal').style.display = 'none';
+});
+
+document.getElementById('credits-btn').addEventListener('click', () => {
+    const credits = document.getElementById('credits-text');
+    credits.style.display = credits.style.display === 'none' ? 'block' : 'none';
+});
+
+// --- SETUP THREE.JS ---
 const canvas = document.getElementById('game-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(800, 600);
@@ -14,13 +33,12 @@ scene.background = new THREE.Color('#87CEEB');
 scene.fog = new THREE.Fog('#87CEEB', 30, 60);
 
 const camera = new THREE.PerspectiveCamera(45, 800 / 600, 0.1, 100);
-// Cameră izometrică (de sus)
 camera.position.set(15, 25, 15);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 0, 0);
 controls.enableDamping = true;
-controls.maxPolarAngle = Math.PI / 2.2; // Limitare unghi ca să nu vezi sub casă
+controls.maxPolarAngle = Math.PI / 2.2;
 controls.minDistance = 5;
 controls.maxDistance = 40;
 
@@ -34,7 +52,6 @@ sunLight.shadow.mapSize.height = 2048;
 scene.add(sunLight);
 
 // --- LUMEA ---
-// Primim interactables, etajul 1 și etajul 2 pentru a le putea ascunde/arăta
 const { interactables, floor1Group, floor2Group } = buildWorld(scene);
 
 // --- PERSONAJE ---
@@ -75,16 +92,14 @@ const npc = createHumanCharacter('Pufi', '#b19cd9', true);
 npc.position.set(-3, 0.2, 2);
 scene.add(npc);
 
-// --- STARE JOC ---
 let needs = { foame: 100, energie: 100, igiena: 100, distractie: 100, social: 100 };
 let gameStarted = false;
 let targetPos = new THREE.Vector3(0, 0.2, 6);
 let simMoving = false;
 let isUsingAction = false;
 let actionTimer = 0;
-let currentFloor = 1; // 1 sau 2
+let currentFloor = 1;
 
-// --- ICONIȚE ---
 function makeIconTexture(text) {
     const c = document.createElement('canvas'); c.width = 64; c.height = 64;
     const ctx = c.getContext('2d');
@@ -98,7 +113,7 @@ const actionSprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: '#fff' }
 actionSprite.scale.set(1, 1, 1); actionSprite.visible = false;
 scene.add(actionSprite);
 
-// --- CREATOR ---
+// --- CREATOR LOGIC ---
 document.getElementById('color-picker').addEventListener('click', (e) => {
   if (e.target.classList.contains('color-option')) {
     document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
@@ -112,8 +127,14 @@ document.getElementById('start-btn').addEventListener('click', () => {
   const nameInput = document.getElementById('sim-name').value.trim();
   if (nameInput) { sim.userData.name = nameInput; document.getElementById('ui-sim-name').innerText = nameInput; }
   sim.userData.torsoMat.color.set(sim.userData.color || '#e8a87c');
+  
+  // Ascundem creatorul, aratam jocul
   document.getElementById('creator-screen').style.display = 'none';
+  document.getElementById('game-ui').style.display = 'flex';
+  
   gameStarted = true;
+  // Fortam un resize ca sa se aseze canvasul corect
+  setTimeout(() => { renderer.setSize(800, 600); }, 100);
 });
 
 // --- ETaje ---
@@ -121,16 +142,16 @@ const floorToggleBtn = document.getElementById('floor-toggle-btn');
 floorToggleBtn.addEventListener('click', () => {
     if (currentFloor === 1) {
         currentFloor = 2;
-        toggleFloor(1, false); // Ascunde etajul 1
-        toggleFloor(2, true);  // Arată etajul 2
+        toggleFloor(1, false);
+        toggleFloor(2, true);
         sim.position.y = 4.2;
         targetPos.y = 4.2;
         floorToggleBtn.innerText = "🏠 Go Downstairs";
         document.getElementById('status-msg').innerText = "You are upstairs.";
     } else {
         currentFloor = 1;
-        toggleFloor(1, true);  // Arată etajul 1
-        toggleFloor(2, false); // Ascunde etajul 2
+        toggleFloor(1, true);
+        toggleFloor(2, false);
         sim.position.y = 0.2;
         targetPos.y = 0.2;
         floorToggleBtn.innerText = "🏠 Go Upstairs";
@@ -141,7 +162,6 @@ floorToggleBtn.addEventListener('click', () => {
 // --- MAGAZIN ---
 const shopModal = document.getElementById('shop-modal');
 const shopGrid = document.getElementById('shop-grid');
-
 const shopCatalog = [
     { id: 'plant', name: 'Plant', color: '#a8c3a6', icon: '🪴' },
     { id: 'lamp', name: 'Lamp', color: '#f4d06f', icon: '💡' },
@@ -171,9 +191,7 @@ document.getElementById('open-shop-btn').addEventListener('click', () => {
                 mesh.position.y = 2;
             }
             mesh.castShadow = true; mesh.receiveShadow = true;
-            mesh.position.x = 0; 
-            mesh.position.z = 0;
-            // Punem obiectul la etajul curent
+            mesh.position.x = 0; mesh.position.z = 0;
             if (currentFloor === 2) mesh.position.y += 4.1;
             
             scene.add(mesh);
@@ -266,7 +284,6 @@ renderer.domElement.addEventListener('click', (e) => {
     const hit = intersects[0].object;
     const objData = interactables.find(i => i.mesh === hit);
     if (objData && objData.type !== 'none') {
-      // Verificăm dacă obiectul e la etajul curent
       const objFloor = objData.pos.y > 2 ? 2 : 1;
       if (objFloor !== currentFloor) {
           document.getElementById('status-msg').innerText = "Object is on another floor!";
