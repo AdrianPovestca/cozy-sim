@@ -724,4 +724,22 @@
           if (clickedObject.need) {
               needs[clickedObject.need] = Math.min(100, needs[clickedObject.need] + 40);
           }
-          document.getElementById('status-msg').innerText = "Folosește "
+          document.getElementById('status-msg').innerText = "Folosește " + clickedObject.name;
+        } else {
+          sim.targetX = clickX;
+          sim.targetY = clickY;
+          sim.state = 'walking';
+        }
+      });
+
+      function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      loop();
+    };
+  </script>
+</body>
+</html>
