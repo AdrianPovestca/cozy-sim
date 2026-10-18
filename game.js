@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { buildWorld } from './world3d.js';
 
-// --- SETUP ---
 const canvas = document.getElementById('game-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(800, 600);
@@ -20,24 +19,15 @@ camera.position.set(15, 15, 15);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 2, 0);
 controls.enableDamping = true;
-controls.dampingFactor = 0.05;
 controls.maxPolarAngle = Math.PI / 2 - 0.05;
-controls.minDistance = 5;
-controls.maxDistance = 35;
 
 // --- LUMINI ---
-const ambientLight = new THREE.AmbientLight('#fff5e6', 0.6);
-scene.add(ambientLight);
-
+scene.add(new THREE.AmbientLight('#fff5e6', 0.6));
 const sunLight = new THREE.DirectionalLight('#ffe8c4', 1.2);
 sunLight.position.set(20, 30, 20);
 sunLight.castShadow = true;
 sunLight.shadow.mapSize.width = 2048;
 sunLight.shadow.mapSize.height = 2048;
-sunLight.shadow.camera.left = -30;
-sunLight.shadow.camera.right = 30;
-sunLight.shadow.camera.top = 30;
-sunLight.shadow.camera.bottom = -30;
 scene.add(sunLight);
 
 // --- LUMEA ---
@@ -46,7 +36,6 @@ const interactables = buildWorld(scene);
 // --- PERSONAJE ---
 function createHumanCharacter(name, shirtColor, isNPC) {
   const group = new THREE.Group();
-  
   const skinMat = new THREE.MeshStandardMaterial({ color: '#ffdfc4' });
   const pantsMat = new THREE.MeshStandardMaterial({ color: isNPC ? '#4a5568' : '#5c6bc0' });
   const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColor });
@@ -90,7 +79,13 @@ let simMoving = false;
 let isUsingAction = false;
 let actionTimer = 0;
 
-// Iconițe 3D
+// --- BUILD MODE ---
+let isBuildMode = false;
+let draggedObject = null;
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+// Iconițe
 function makeIconTexture(text) {
     const c = document.createElement('canvas'); c.width = 64; c.height = 64;
     const ctx = c.getContext('2d');
@@ -100,7 +95,6 @@ function makeIconTexture(text) {
     return new THREE.CanvasTexture(c);
 }
 const icons = { sleep: makeIconTexture('💤'), shower: makeIconTexture('💧'), eat: makeIconTexture('🍔'), fun: makeIconTexture('🎮'), talk: makeIconTexture('💬') };
-
 const actionSprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: '#fff' }));
 actionSprite.scale.set(1, 1, 1); actionSprite.visible = false;
 scene.add(actionSprite);
@@ -123,12 +117,125 @@ document.getElementById('start-btn').addEventListener('click', () => {
   gameStarted = true;
 });
 
+// --- MAGAZIN ---
+const shopModal = document.getElementById('shop-modal');
+const shopGrid = document.getElementById('shop-grid');
+
+const shopCatalog = [
+    { id: 'plant', name: 'Plant', color: '#a8c3a6', icon: '🪴' },
+    { id: 'lamp', name: 'Lamp', color: '#f4d06f', icon: '💡' },
+    { id: 'chair', name: 'Chair', color: '#d9a0b3', icon: '🪑' },
+    { id: 'picture', name: 'Picture', color: '#e8a87c', icon: '🖼️' }
+];
+
+document.getElementById('open-shop-btn').addEventListener('click', () => {
+    shopGrid.innerHTML = '';
+    shopCatalog.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'shop-item';
+        div.innerHTML = `<span class="shop-item-emoji">${item.icon}</span><span class="shop-item-name">${item.name}</span>`;
+        div.addEventListener('click', () => {
+            // Creare obiect 3D simplu
+            let mesh;
+            if (item.id === 'plant') {
+                mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.8, 8), new THREE.MeshStandardMaterial({ color: item.color }));
+                mesh.position.y = 0.4;
+            } else if (item.id === 'lamp') {
+                mesh = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.5, 8), new THREE.MeshStandardMaterial({ color: item.color }));
+                mesh.position.y = 0.75;
+            } else if (item.id === 'chair') {
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: item.color }));
+                mesh.position.y = 0.5;
+            } else {
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1, 0.1), new THREE.MeshStandardMaterial({ color: item.color }));
+                mesh.position.y = 2;
+            }
+            mesh.castShadow = true; mesh.receiveShadow = true;
+            mesh.position.x = 0; mesh.position.z = 0;
+            mesh.userData.isFurniture = true;
+            
+            scene.add(mesh);
+            interactables.push({ mesh, type: 'none', pos: mesh.position }); // Obiectele noi nu oferă nevoi
+            
+            shopModal.style.display = 'none';
+            document.getElementById('status-msg').innerText = "Bought " + item.name + "! Enter Build Mode to move it.";
+        });
+        shopGrid.appendChild(div);
+    });
+    shopModal.style.display = 'flex';
+});
+
+document.getElementById('close-shop').addEventListener('click', () => {
+    shopModal.style.display = 'none';
+});
+
+// --- BUILD MODE ---
+const buildBtn = document.getElementById('build-mode-btn');
+buildBtn.addEventListener('click', () => {
+    isBuildMode = !isBuildMode;
+    if (isBuildMode) {
+        buildBtn.innerText = "✅ Exit Build Mode";
+        buildBtn.classList.add('active');
+        canvas.classList.add('build-mode');
+        controls.enabled = false; // Oprim rotirea camerei cu click stânga
+        document.getElementById('status-msg').innerText = "Click & drag furniture to move it.";
+    } else {
+        buildBtn.innerText = "🔨 Build Mode";
+        buildBtn.classList.remove('active');
+        canvas.classList.remove('build-mode');
+        controls.enabled = true;
+        document.getElementById('status-msg').innerText = "Game mode active.";
+    }
+});
+
 // --- INTERACȚIUNE ---
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+renderer.domElement.addEventListener('mousedown', (e) => {
+    if (!gameStarted) return;
+    
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+
+    if (isBuildMode) {
+        // Căutăm obiectul pe care dăm click
+        const furnitureMeshes = interactables.map(i => i.mesh);
+        const intersects = raycaster.intersectObjects(furnitureMeshes);
+        if (intersects.length > 0) {
+            draggedObject = intersects[0].object;
+        }
+    }
+});
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+    if (!gameStarted || !isBuildMode || !draggedObject) return;
+    
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+
+    // Intersectăm cu podeaua (le avem în interactables? Nu, trebuie să găsim podeaua)
+    // Pentru simplitate, mutăm obiectul pe un plan orizontal invizibil
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const target = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, target);
+    
+    if (target) {
+        draggedObject.position.x = target.x;
+        draggedObject.position.z = target.z;
+    }
+});
+
+renderer.domElement.addEventListener('mouseup', () => {
+    if (draggedObject) {
+        draggedObject = null;
+        // Aici am putea salva noile poziții
+    }
+});
 
 renderer.domElement.addEventListener('click', (e) => {
-  if (!gameStarted || isUsingAction) return;
+  if (!gameStarted || isUsingAction || isBuildMode) return;
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -138,7 +245,7 @@ renderer.domElement.addEventListener('click', (e) => {
   if (intersects.length > 0) {
     const hit = intersects[0].object;
     const objData = interactables.find(i => i.mesh === hit);
-    if (objData) {
+    if (objData && objData.type !== 'none') {
       targetPos.copy(objData.pos);
       targetPos.x += 1.5; 
       targetPos.y = objData.pos.y > 2 ? 4.2 : 0.2;
@@ -179,7 +286,6 @@ function animate() {
         } else if (sim.userData.currentAction === 'igiena') {
             sim.position.y = 4.2 + Math.abs(Math.sin(time * 10)) * 0.2;
         }
-        
         if (actionTimer <= 0) {
             isUsingAction = false;
             sim.position.y = sim.position.y > 2 ? 4.2 : 0.2;
@@ -197,32 +303,26 @@ function animate() {
         sim.position.addScaledVector(dir, 3 * delta);
         const targetLook = sim.position.clone().add(dir);
         sim.lookAt(targetLook);
-
         const walkSwing = Math.sin(time * 10) * 0.5;
         sim.userData.legL.rotation.x = walkSwing; sim.userData.legR.rotation.x = -walkSwing;
         sim.userData.armL.rotation.x = -walkSwing; sim.userData.armR.rotation.x = walkSwing;
-        
         if (sim.position.y < 1 && targetPos.y > 2) sim.position.y = 4.2;
         else if (sim.position.y > 3 && targetPos.y < 1) sim.position.y = 0.2;
-
       } else {
         simMoving = false;
         sim.userData.legL.rotation.x = 0; sim.userData.legR.rotation.x = 0;
         sim.userData.armL.rotation.x = 0; sim.userData.armR.rotation.x = 0;
-
         if (sim.userData.nextAction) {
             isUsingAction = true;
             actionTimer = 3;
             sim.userData.currentAction = sim.userData.nextAction;
             actionSprite.material.map = icons[sim.userData.nextAction] || icons.fun;
             actionSprite.visible = true;
-            
             if (sim.userData.nextAction === 'energie') needs.energie += 30;
             if (sim.userData.nextAction === 'igiena') needs.igiena += 30;
             if (sim.userData.nextAction === 'foame') needs.foame += 30;
             if (sim.userData.nextAction === 'distractie') needs.distractie += 30;
             if (sim.userData.nextAction === 'social') needs.social += 30;
-            
             sim.userData.nextAction = null;
         }
       }
@@ -233,6 +333,7 @@ function animate() {
         actionSprite.position.y += 3;
     }
 
+    // NPC Wander
     if (Math.random() < 0.005) {
         npc.userData.target = new THREE.Vector3(-6 + Math.random() * 12, 0.2, -6 + Math.random() * 12);
     }
